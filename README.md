@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="gitview - which branches are finished and safe to delete, by DBHQ" width="420">
+<img src="assets/logo.svg" alt="gitview - which branches are finished and safe to delete, by DBHQ" width="560">
 
 # gitview
 
@@ -10,7 +10,7 @@
 [![Claude Code](https://img.shields.io/badge/Claude_Code-Plugin-blueviolet)](https://code.claude.com/docs/en/plugins)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey)]()
 
-A free, open-source tool by [DBHQ](https://dbhq.uk)
+A free, open-source tool by [DBHQ](https://dbhq.uk) - documented at [skills.dbhq.uk](https://skills.dbhq.uk/gitview/)
 
 </div>
 
@@ -30,21 +30,21 @@ the answer looks right. That is the whole reason this skill exists.
 
 ## Install
 
-### Any agent (Claude Code, Codex, Cursor, Copilot, Windsurf, Gemini, Cline and more)
+### As a Claude Code plugin (recommended)
+
+```
+/plugin marketplace add dbhq-uk/marketplace
+/plugin install gitview@dbhq
+```
+
+### Any agent (Cursor, Copilot, Windsurf, Gemini, Cline and more)
 
 ```bash
 npx skills add dbhq-uk/gitview-skill
 ```
 
 The [skills.sh](https://skills.sh) CLI installs into whichever agent directories
-it finds.
-
-### Claude Code plugin
-
-```bash
-/plugin marketplace add dbhq-uk/marketplace
-/plugin install gitview@dbhq
-```
+it finds, so this works outside Claude Code and Codex too.
 
 ### Local install (Claude Code or Codex)
 
@@ -65,6 +65,7 @@ whole skill directory is symlinked untouched, while Codex does not, so its
 
 Python 3 and `git`. Optionally `gh` or the Azure CLI, for the pull request
 column.
+
 
 ## Use
 
@@ -97,11 +98,26 @@ Design: [docs/superpowers/specs/2026-09-10-gitview-design.md](docs/superpowers/s
 
 ## Also from DBHQ
 
-[jira](https://github.com/dbhq-uk/jira-skill) - create and read Jira Cloud issues
-over the REST API. The two shipped together as `devskills` until 17 September
-2026; they were split because they share no API, no credential and no subject.
+Fifteen free agent skills, all of them installable from the same marketplace and
+all documented at **[skills.dbhq.uk](https://skills.dbhq.uk)**.
 
-The rest of the skills are at [dbhq.uk/skills](https://dbhq.uk/skills/).
+| Skill | What it does |
+|---|---|
+| [outlook](https://skills.dbhq.uk/outlook/) | Microsoft 365 mail and calendar, from the terminal |
+| [trello](https://skills.dbhq.uk/trello/) | Your boards, run from your agent |
+| [legwork](https://skills.dbhq.uk/legwork/) | Research that settles a decision, and says when it cannot |
+| [dovetail](https://skills.dbhq.uk/dovetail/) | Checks whether your repository still agrees with itself |
+| [verve](https://skills.dbhq.uk/verve/) | Strips AI tells from prose and puts a voice back |
+| [vela](https://skills.dbhq.uk/vela/) | Compiler-exact code search for .NET |
+| [garmin](https://skills.dbhq.uk/garmin/) | Your Garmin data, answered in the terminal |
+| [imager](https://skills.dbhq.uk/imager/) | Images from GPT Image 2, costed before it spends |
+| [atlassian](https://skills.dbhq.uk/atlassian/) | Jira issues and Confluence pages |
+| [pennyblack](https://skills.dbhq.uk/pennyblack/) | A physical letter, posted from the terminal |
+| [buildwork](https://skills.dbhq.uk/buildwork/) | Your open issues, run as parallel agents |
+| [deskwork](https://skills.dbhq.uk/deskwork/) | What an agent noticed, tracked as real work |
+| [groupwork](https://skills.dbhq.uk/groupwork/) | A second agent on the work, adversary or partner |
+
+Plus [heliograph](https://skills.dbhq.uk/heliograph/), for a machine you cannot log into.
 
 ## Licence
 
