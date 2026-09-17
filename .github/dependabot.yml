@@ -1,7 +1,7 @@
 version: 2
 updates:
   # GitHub Actions only. There is deliberately no pip ecosystem here: gitview is
-  # Python standard library and shells out to git, jira is bash calling curl,
+  # Python standard library and shells out to git,
   # and neither has a requirements.txt. Nothing to keep up to date is the point,
   # not an omission.
   - package-ecosystem: github-actions

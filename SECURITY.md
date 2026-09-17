@@ -6,12 +6,7 @@ Email <dan@dbhq.uk> rather than opening a public issue. Include what you found,
 how to reproduce it, and what an attacker could do with it. You will get a first
 response within 48 hours.
 
-## What this pack does
-
-Two skills, with different reach. They are described separately because the
-answer to "what can this touch" is different for each.
-
-## gitview
+## What this skill does
 
 ### Network
 
@@ -29,8 +24,8 @@ out an existing branch, and it never writes to your working tree or your index.
 Two things it does create, both temporary and both outside the repository:
 
 - A throwaway git index under `tempfile.mkstemp`, so the real one is untouched
-- A detached worktree under `tempfile.mkdtemp`, used to test-merge the trunk
-  into a copy of each branch and compare the resulting trees. It is removed with
+- A detached worktree under `tempfile.mkdtemp`, used to test-merge the trunk into
+  a copy of each branch and compare the resulting trees. It is removed with
   `git worktree remove --force` when the check finishes
 
 That test merge is the whole reason the "safe to delete" column can be trusted
@@ -58,37 +53,7 @@ branch deletions at all, do not install this one.
 
 None of its own.
 
-## jira
-
-### Network
-
-Jira Cloud REST API v3 over HTTPS, at the site URL you configure. Nothing else,
-and no telemetry.
-
-### Credentials
-
-`~/.jira/config.json`, mode 600, holding `site`, `email` and an API token. It is
-written outside any repository. Setup verifies the credential against
-`/rest/api/3/myself` before writing anything, so a wrong token costs you
-nothing.
-
-**The token never reaches a command line.** `curl` reads the URL, the
-credentials and the method from the 0600 config file, so the token does not
-appear in `ps` output or in your shell history.
-
-### What it can do to your Jira
-
-**It creates and reads only.** There is no delete, no bulk transition, and no
-project administration. A partial bulk failure leaves the created issues in
-place because there is no rollback, which is a consequence of the same
-constraint: the skill cannot delete an issue it made. Anything destructive stays
-a human job in the Jira UI.
-
-`bulk` supports `--dry-run`, which prints the exact payload for every issue and
-sends nothing.
-
 ## Third-party code
 
-None. No packages are installed and no dependencies are pulled at runtime.
-gitview is Python standard library and shells out to `git`; jira is bash calling
-`curl` and `jq`.
+None. No packages are installed and no dependencies are pulled at runtime. It is
+Python standard library and shells out to `git`.

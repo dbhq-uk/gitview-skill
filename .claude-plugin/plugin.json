@@ -1,13 +1,13 @@
 {
-  "name": "devskills",
-  "description": "A pack of development skills for Claude Code and Codex. gitview surveys every branch and worktree in a repository, says which branches are finished, and offers to clear them away. jira creates and reads Jira Cloud issues over the REST API, checking the project key, issue type and required fields before it writes.",
-  "version": "0.2.0",
+  "name": "gitview",
+  "description": "A git branch housekeeping skill for Claude Code and Codex. gitview surveys every branch and worktree in a repository, says which branches are finished and safe to delete where a squash-merge defeats the obvious checks, and offers to clear them away only after re-verifying each one.",
+  "version": "1.0.0",
   "author": {
     "name": "DBHQ",
     "email": "dan@dbhq.uk"
   },
   "homepage": "https://dbhq.uk",
-  "repository": "https://github.com/dbhq-uk/devskills",
+  "repository": "https://github.com/dbhq-uk/gitview-skill",
   "license": "MIT",
   "keywords": [
     "git",
@@ -16,9 +16,6 @@
     "pull-requests",
     "developer-tools",
     "housekeeping",
-    "jira",
-    "atlassian",
-    "issue-tracking",
-    "jql"
+    "cleanup"
   ]
 }

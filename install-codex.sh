@@ -5,8 +5,8 @@
 # variable to each skill's installed Codex path and symlinks the supporting
 # directories (edits to those stay live). Re-run after editing a SKILL.md.
 #
-# Neither skill in this pack needs a venv: gitview is Python standard library
-# and shells out to git, and jira is bash calling curl. So there is no build
+# This skill needs no venv: it is Python standard library and shells out to
+# git. So there is no build
 # step here, unlike the org's Python skills that carry one.
 
 set -e
@@ -14,20 +14,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_ROOT="$HOME/.codex/skills"
 
-echo "=== devskills installer (Codex) ==="
+echo "=== gitview installer (Codex) ==="
 echo
 
 # --- Dependencies ---
-# A warning, not a failure: each skill needs its own subset, so a missing tool
-# blocks that one skill rather than the install.
+# A warning, not a failure: a missing tool blocks the survey, not the install.
 MISSING=""
-command -v jq >/dev/null 2>&1      || MISSING="$MISSING jq(jira)"
-command -v curl >/dev/null 2>&1    || MISSING="$MISSING curl(jira)"
-command -v python3 >/dev/null 2>&1 || MISSING="$MISSING python3(gitview)"
-command -v git >/dev/null 2>&1     || MISSING="$MISSING git(gitview)"
+command -v python3 >/dev/null 2>&1 || MISSING="$MISSING python3"
+command -v git >/dev/null 2>&1     || MISSING="$MISSING git"
 if [ -n "$MISSING" ]; then
-  echo "Missing, with the skill that needs it:$MISSING"
-  echo "The rest of the pack still installs."
+  echo "Missing:$MISSING"
+  echo "The skill installs anyway, but it cannot survey a repository until they are there."
 else
   echo "Dependencies OK."
 fi
@@ -57,11 +54,11 @@ echo
 echo "Installed for Codex. Re-run after editing a SKILL.md - that file is
 rewritten at install time rather than symlinked, so its edits are not live."
 
-# --- Setup scripts, if any skill has one ---
+# --- Setup script, if there is one ---
 SETUPS="$(find "$SCRIPT_DIR"/skills -type f -name '*-setup.sh' | sort)"
 if [ -n "$SETUPS" ]; then
   echo
-  echo "These skills need credentials before first use:"
+  echo "This skill needs credentials before first use:"
   while IFS= read -r setup; do
     name="$(basename "$(dirname "$(dirname "$setup")")")"
     echo "  $name:  $SKILLS_ROOT/$name/scripts/$(basename "$setup")"
@@ -69,4 +66,4 @@ if [ -n "$SETUPS" ]; then
 fi
 
 echo
-echo "Done. Try: 'survey the branches in this repo' or 'what Jira projects can I see'"
+echo "Done. Try: 'survey the branches in this repo'"
