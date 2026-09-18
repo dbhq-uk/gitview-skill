@@ -80,6 +80,34 @@ forge API, which is why it works on a private remote you cannot query.
 Talk to your agent: "survey the branches in this repo", "what can I delete",
 "which of these are actually finished".
 
+### What it looks like
+
+Real output, from a real run against a repository built to have branches in
+each of the states this exists to tell apart. The trunk took two of these
+branches by **squash merge**, which is the case the obvious checks get wrong:
+both still read as one commit ahead of the trunk, and `git branch --merged`
+lists neither.
+
+| Worktree | Branch | PR | Ahead | Behind | Unpushed | Safe to delete |
+|---|---|---|---|---|---|---|
+| checkout-service | `main` | - | 0 | 0 | 0 | no, trunk |
+| - | `chore/bump-sdk` | - | 1 | 1 | 0 | **YES** |
+| - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES** |
+| - | `fix/expired-card-retry` | - | 1 | 0 | 0 | no, 1 file changed, 1 insertion(+) |
+| - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
+| - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
+
+Trunk is `origin/main`.
+
+Read the last column rather than the counts. `chore/bump-sdk` and
+`feat/vat-rounding` are **YES** because merging the trunk into a throwaway copy
+of each produces a tree identical to the trunk's - they add nothing, whatever
+their ahead count says. The three refusals each name what would be lost: a real
+diff against the trunk, and for two of them no remote holding a copy of it.
+
+It is a markdown table because your agent renders it. The table above is the
+output pasted in, not a screenshot of one.
+
 It shows the table first, then offers deletions, and asks before each one. It
 will not delete a branch that has a worktree or an open pull request, it
 re-verifies each branch immediately before it goes, and it prints the commit SHA
