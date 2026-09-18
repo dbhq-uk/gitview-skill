@@ -106,7 +106,17 @@ their ahead count says. The three refusals each name what would be lost: a real
 diff against the trunk, and for two of them no remote holding a copy of it.
 
 It is a markdown table because your agent renders it. The table above is the
-output pasted in, not a screenshot of one.
+output pasted in, not a screenshot of one - so it stays selectable, searchable
+and readable by a screen reader.
+
+**Reproduce it rather than trust it.** The repository is built by
+[`docs/build-demo-fixture.sh`](docs/build-demo-fixture.sh), which comments each
+branch state as it creates it:
+
+```bash
+bash docs/build-demo-fixture.sh
+python3 skills/gitview/scripts/gitview.py /tmp/gitview-demo/checkout-service
+```
 
 It shows the table first, then offers deletions, and asks before each one. It
 will not delete a branch that has a worktree or an open pull request, it
