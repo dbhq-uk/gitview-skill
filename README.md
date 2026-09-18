@@ -16,6 +16,8 @@ A free, open-source tool by [DBHQ](https://dbhq.uk) - documented at [skills.dbhq
 
 ---
 
+## What makes it different
+
 One table: worktree, branch, open pull request, ahead, behind, unpushed, and
 whether the branch is safe to delete.
 
@@ -66,6 +68,12 @@ whole skill directory is symlinked untouched, while Codex does not, so its
 Python 3 and `git`. Optionally `gh` or the Azure CLI, for the pull request
 column.
 
+
+## Requirements
+
+Python 3, standard library only, and `git`. Nothing else: the safe-to-delete
+check is answered from the repository in front of it rather than from a
+forge API, which is why it works on a private remote you cannot query.
 
 ## Use
 
