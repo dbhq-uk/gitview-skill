@@ -144,7 +144,7 @@ Design: [docs/superpowers/specs/2026-09-10-gitview-design.md](docs/superpowers/s
 
 ## Also from DBHQ
 
-Fifteen free agent skills, all of them installable from the same marketplace and
+Sixteen free agent skills, all of them installable from the same marketplace and
 all documented at **[skills.dbhq.uk](https://skills.dbhq.uk)**. The marketplace
 itself is [dbhq-uk/marketplace](https://github.com/dbhq-uk/marketplace) - one
 `/plugin marketplace add` and every one of them is available.
