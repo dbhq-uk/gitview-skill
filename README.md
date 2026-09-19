@@ -23,7 +23,9 @@ whether the branch is safe to delete.
 
 The last column is the one that is hard. A branch merged by squash stays ahead of
 the trunk forever while contributing nothing, so commit counts cannot answer it
-and `git branch --merged` never sees it. gitview merges the trunk into a
+and `git branch --merged` never sees it.
+
+gitview merges the trunk into a
 throwaway copy of each branch and compares the resulting tree against the
 trunk's. If they match, the branch adds nothing and can go.
 
@@ -102,7 +104,9 @@ Trunk is `origin/main`.
 Read the last column rather than the counts. `chore/bump-sdk` and
 `feat/vat-rounding` are **YES** because merging the trunk into a throwaway copy
 of each produces a tree identical to the trunk's - they add nothing, whatever
-their ahead count says. The three refusals each name what would be lost: a real
+their ahead count says.
+
+The three refusals each name what would be lost: a real
 diff against the trunk, and for two of them no remote holding a copy of it.
 
 It is a markdown table because your agent renders it. The table above is the
@@ -136,7 +140,9 @@ before changing anything in that logic.
 In short: for each branch, gitview creates a throwaway git index and a detached
 worktree outside your repository, merges the trunk into a copy of the branch, and
 compares the resulting tree to the trunk's. Identical trees mean the branch
-contributes nothing, whatever its ahead count says. Both temporary artefacts are
+contributes nothing, whatever its ahead count says.
+
+Both temporary artefacts are
 removed when the check finishes; your working tree and your index are never
 touched.
 
