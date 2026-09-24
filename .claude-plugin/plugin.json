@@ -1,7 +1,6 @@
 {
   "name": "gitview",
   "description": "A git branch housekeeping skill for Claude Code and Codex. gitview surveys every branch and worktree in a repository, says which branches are finished and safe to delete where a squash-merge defeats the obvious checks, and offers to clear them away only after re-verifying each one.",
-  "version": "1.0.0",
   "author": {
     "name": "DBHQ",
     "email": "dan@dbhq.uk"
