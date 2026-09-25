@@ -178,7 +178,8 @@ def survey(cwd, want_prs=True):
     trees = [tree for tree in gitrepo.worktree_list(cwd) if not tree.bare]
     counts = {tree.path: gitrepo.changes(tree.path) for tree in trees}
     by_branch = {tree.branch: tree for tree in trees if tree.branch}
-    rows = []
+    push_to = _push_remote(cwd)
+    rows, pushes, held = [], [], []
     for branch in gitrepo.branches(cwd):
         name = branch.name
         ref = f"refs/heads/{name}"
@@ -203,19 +204,29 @@ def survey(cwd, want_prs=True):
 
         ahead = gitrepo.count(cwd, f"{trunk_ref}..{ref}")
         behind = gitrepo.count(cwd, f"{ref}..{trunk_ref}")
-        rows.append(
-            table.Row(
-                worktree=_worktree_label(tree) if tree else "-",
-                dirty=_dirty_label(counts[tree.path]) if tree else "-",
-                branch=name,
-                pr=prs.get(name, "-"),
-                ahead="?" if ahead is None else ahead,
-                behind="?" if behind is None else behind,
-                unpushed=_unpushed(cwd, branch),
-                safe=safe,
-                landed=finished,
-            )
+        row = table.Row(
+            worktree=_worktree_label(tree) if tree else "-",
+            dirty=_dirty_label(counts[tree.path]) if tree else "-",
+            branch=name,
+            pr=prs.get(name, "-"),
+            ahead="?" if ahead is None else ahead,
+            behind="?" if behind is None else behind,
+            unpushed=_unpushed(cwd, branch),
+            safe=safe,
+            landed=finished,
         )
+        rows.append(row)
+
+        if name == trunk_name:
+            diverged = _trunk_divergence(cwd, branch)
+            if diverged:
+                notes.append(diverged)
+        else:
+            command, reason = _push_offer(cwd, branch, row, push_to)
+            if command:
+                pushes.append(command)
+            if reason:
+                held.append(reason)
 
     for tree in trees:
         if tree.branch is None and tree.head:
@@ -225,6 +236,12 @@ def survey(cwd, want_prs=True):
     if risky:
         listed = ", ".join(_risk_item(row) for row in risky)
         notes.insert(0, f"At risk of being lost: {listed}.")
+
+    if pushes:
+        listed = ", ".join(f"`{command}`" for command in pushes)
+        notes.append(f"To push the work that has not landed, run exactly: {listed}.")
+    if held:
+        notes.append(f"Not offered for a push: {'; '.join(held)}.")
 
     if gitrepo.is_bare(cwd) and gitrepo.git(["remote"], cwd, check=False) and not gitrepo.has_remote_tracking_refs(cwd):
         notes.append(
@@ -240,6 +257,79 @@ def survey(cwd, want_prs=True):
         entries = "1 stash entry exists" if stashes == 1 else f"{stashes} stash entries exist"
         notes.append(f"{entries} in this clone. Stashes are local only and are not in the table.")
     return rows, notes
+
+
+def _push_remote(cwd):
+    """The remote a branch with no upstream would be pushed to, or None.
+
+    `origin` when there is one, or the only remote. With several and no
+    `origin`, which one is meant is the user's call, not a guess.
+    """
+    remotes = gitrepo.git(["remote"], cwd, check=False).split()
+    if "origin" in remotes:
+        return "origin"
+    return remotes[0] if len(remotes) == 1 else None
+
+
+def _push_offer(cwd, branch, row, push_to):
+    """(command, reason): the push worth offering for BRANCH, or why it is held back.
+
+    Either may be None. Never a landed branch: everything in it is on the
+    trunk already, so a push only makes a remote branch nobody needs. Never a
+    branch behind its upstream: the remote would reject it. The trunk never
+    gets here at all.
+    """
+    if row.landed or row.safe.startswith("YES"):
+        return None, None
+    git = f"git -C {shlex.quote(cwd)}"
+    name = branch.name
+    if row.unpushed == "no remote":
+        if push_to is None:
+            return None, None
+        flag = "-u " if branch.upstream is None else ""
+        return f"{git} push {flag}{shlex.quote(push_to)} {shlex.quote(name)}", None
+    if not (row.unpushed.isdigit() and int(row.unpushed) > 0):
+        return None, None
+    up = gitrepo.upstream(cwd, name)
+    if up is None or up.sha is None or not up.on_a_remote:
+        return None, None
+    behind = gitrepo.count(cwd, f"refs/heads/{name}..{up.ref}")
+    if behind is None or behind > 0:
+        count = "an unknown number of" if behind is None else str(behind)
+        return None, (
+            f"`{name}` is also {count} behind its upstream, so the remote would reject it. "
+            "Pull or rebase first"
+        )
+    target = up.remote_ref[len("refs/heads/"):] if up.remote_ref.startswith("refs/heads/") else up.remote_ref
+    refspec = shlex.quote(f"{name}:{target}")
+    return f"{git} push {shlex.quote(up.remote)} {refspec}", None
+
+
+def _trunk_divergence(cwd, branch):
+    """A note when the local trunk has commits its upstream does not.
+
+    gitview never offers to push the trunk. A diverged trunk would be
+    rejected, and in many repositories a push to the trunk is a deploy. So it
+    says what it found and leaves the call to the user.
+    """
+    up = gitrepo.upstream(cwd, branch.name)
+    if up is None or up.sha is None or not up.on_a_remote:
+        return None
+    short = up.ref[len("refs/remotes/"):]
+    ahead = gitrepo.count(cwd, f"{up.ref}..refs/heads/{branch.name}")
+    behind = gitrepo.count(cwd, f"refs/heads/{branch.name}..{up.ref}")
+    if not ahead:
+        return None
+    if behind:
+        return (
+            f"Local `{branch.name}` has diverged from `{short}`: {ahead} commit"
+            f"{'s' if ahead != 1 else ''} only here, {behind} only there. A push would be "
+            "rejected, and gitview never offers to push the trunk. Reconcile it by hand."
+        )
+    return (
+        f"Local `{branch.name}` has {ahead} commit{'s' if ahead != 1 else ''} `{short}` "
+        "does not. gitview never offers to push the trunk: that is your call."
+    )
 
 
 def _risk_item(row):

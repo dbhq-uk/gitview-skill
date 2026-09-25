@@ -101,6 +101,7 @@ lists neither.
 
 At risk of being lost: `spike/apple-pay` (no remote holds it), `wip/rename-basket` (no remote holds it).
 Trunk is `origin/main`.
+To push the work that has not landed, run exactly: `git -C /tmp/gitview-demo/checkout-service push -u origin spike/apple-pay`, `git -C /tmp/gitview-demo/checkout-service push -u origin wip/rename-basket`.
 No fetch is recorded in this clone, so the remote-tracking refs may be stale. `git fetch --prune` refreshes them.
 
 Read the last column rather than the counts. `chore/bump-sdk` and
@@ -120,6 +121,11 @@ diff against the trunk, and for two of them no remote holding a copy of it.
 Those two are the at-risk note under the table: not landed, and nowhere but
 here. A landed branch is never at risk, even with no remote, because its
 content is already on the trunk.
+
+The push commands cover only work that has not landed. gitview never offers to
+push the trunk, a landed branch, or a branch behind its upstream. When the
+local trunk has commits its upstream does not, it says so and leaves the call
+to you.
 
 Worktrees get the same care. Dirty counts uncommitted changes and untracked
 files, and a landed branch whose worktree is dirty, locked or missing is never
