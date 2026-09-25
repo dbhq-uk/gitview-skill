@@ -33,7 +33,9 @@ nothing else: no worktree, no index, no hooks, no commit. Older git falls back t
 a detached temporary worktree with hooks off, and removes only that worktree.
 **Never add a `git worktree prune`**: it acts on every worktree in the
 repository, and a worktree whose directory is briefly absent loses its
-registration. If you need a write operation, it belongs in the agent's hands in
+registration. The Dirty column reads each worktree with
+`git --no-optional-locks status`, because a plain `git status` refreshes the
+index, and that is a write. If you need a write operation, it belongs in the agent's hands in
 the user's session, not in the script.
 
 **2. A destructive suggestion must be gated, and the gate is re-verified.** The
@@ -46,7 +48,10 @@ request all refuse, and a pull request lookup that cannot run refuses too. It
 prints the SHAs so a wrong call is recoverable, and the remote delete it prints
 is leased to the upstream SHA it checked. A table is a snapshot and a repository
 worked by several sessions moves underneath it. Do not weaken this into "the
-table already said it was safe", and do not drop the lease.
+table already said it was safe", and do not drop the lease. The same goes for
+a worktree: `--verify` prints `git worktree remove` only for a clean, unlocked,
+linked worktree whose branch passed every other gate, and never with `--force`.
+Do not add `--force` anywhere a user could run it.
 
 **3. Safe to delete is computed, never inferred.** Read
 [`skills/gitview/references/safe-to-delete.md`](skills/gitview/references/safe-to-delete.md)

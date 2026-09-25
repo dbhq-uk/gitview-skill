@@ -18,8 +18,8 @@ A free, open-source tool by [DBHQ](https://dbhq.uk) - documented at [skills.dbhq
 
 ## What makes it different
 
-One table: worktree, branch, open pull request, ahead, behind, unpushed, and
-whether the branch is safe to delete.
+One table: worktree, uncommitted changes, branch, open pull request, ahead,
+behind, unpushed, and whether the branch is safe to delete.
 
 The last column is the one that is hard. A branch merged by squash stays ahead of
 the trunk forever while contributing nothing, so commit counts cannot answer it
@@ -90,14 +90,14 @@ branches by **squash merge**, which is the case the obvious checks get wrong:
 both still read as one commit ahead of the trunk, and `git branch --merged`
 lists neither.
 
-| Worktree | Branch | PR | Ahead | Behind | Unpushed | Safe to delete |
-|---|---|---|---|---|---|---|
-| checkout-service | `main` | - | 0 | 0 | 0 | no, trunk |
-| - | `chore/bump-sdk` | - | 1 | 1 | 0 | **YES**, adds nothing to trunk |
-| - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES**, adds nothing to trunk |
-| - | `fix/expired-card-retry` | - | 1 | 0 | 0 | no, 1 file changed, 1 insertion(+) |
-| - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
-| - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
+| Worktree | Dirty | Branch | PR | Ahead | Behind | Unpushed | Safe to delete |
+|---|---|---|---|---|---|---|---|
+| checkout-service | no | `main` | - | 0 | 0 | 0 | no, trunk |
+| - | - | `chore/bump-sdk` | - | 1 | 1 | 0 | **YES**, adds nothing to trunk |
+| - | - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES**, adds nothing to trunk |
+| - | - | `fix/expired-card-retry` | - | 1 | 0 | 0 | no, 1 file changed, 1 insertion(+) |
+| - | - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
+| - | - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
 
 At risk of being lost: `spike/apple-pay` (no remote holds it), `wip/rename-basket` (no remote holds it).
 Trunk is `origin/main`.
@@ -121,6 +121,12 @@ Those two are the at-risk note under the table: not landed, and nowhere but
 here. A landed branch is never at risk, even with no remote, because its
 content is already on the trunk.
 
+Worktrees get the same care. Dirty counts uncommitted changes and untracked
+files, and a landed branch whose worktree is dirty, locked or missing is never
+**YES**: its commits are on the trunk, but the worktree may hold work that is
+not. A detached worktree gets its own row, and is at risk when no branch holds
+its commit. A bare repository is surveyed like any other.
+
 It is a markdown table because your agent renders it. The table above is the
 output pasted in, not a screenshot of one - so it stays selectable, searchable
 and readable by a screen reader.
@@ -141,6 +147,11 @@ request, or a remote copy somebody pushed to after it merged. It prints the
 local and remote SHAs so a wrong call can be undone, and the remote delete is
 leased to the SHA it checked, so a push that lands after the check makes the
 delete fail rather than destroy that commit.
+
+A finished branch still checked out in a clean worktree is refused until the
+worktree goes. `--verify` then prints `git worktree remove` for it, never with
+`--force`, and lists any ignored files the removal would take with it, such as
+a local `.env`. The agent asks, removes it, and verifies again.
 
 **gitview itself deletes nothing.** `gitview.py` never deletes, pushes, merges or
 checks out a branch, and never writes to your working tree, your index or any

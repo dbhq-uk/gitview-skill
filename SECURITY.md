@@ -37,6 +37,11 @@ read only, and this is exactly what it writes:
   `git worktree remove --force`, and only that worktree. It never runs
   `git worktree prune`, which would act on every worktree in the repository.
 
+- **In every worktree**, it runs `git status` to fill the Dirty column. It runs
+  with `--no-optional-locks`, so status does not refresh and rewrite the index
+  as it normally would, and with `core.fsmonitor=false`, so no file-system
+  monitor hook or daemon is started.
+
 That test merge is the whole reason the "safe to delete" column can be trusted
 where a repository squashes on merge, and it is why the work never happens in
 your checkout.
@@ -63,6 +68,14 @@ against the upstream's own remote and branch name, so if anybody pushes to that
 branch after the check, the delete is rejected instead of destroying their
 commit. The `git branch -D` and the push are run by the agent in your session,
 so they are visible to you and subject to your own tool permissions.
+
+A branch still checked out in a worktree is refused. When that is the only
+refusal, and the worktree is a linked one that is clean, unlocked and present,
+`--verify` prints `git worktree remove <path>` for it, never with `--force`.
+Without `--force` git refuses a worktree with changes or untracked files. It
+does not refuse ignored files: they count as clean and are deleted with the
+directory, so `--verify` lists them first. It never offers to remove the main
+worktree, or a dirty, locked or missing one.
 
 A skill is instructions, not a sandbox. If you do not want an agent proposing
 branch deletions at all, do not install this one.

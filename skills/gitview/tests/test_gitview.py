@@ -88,5 +88,5 @@ def test_the_whole_run_prints_a_table_and_names_the_trunk(capsys):
         repo = build(tmp)
         assert gitview.main(["--no-pr", repo]) == 0
         out = capsys.readouterr().out
-        assert "| Worktree | Branch |" in out
+        assert "| Worktree | Dirty | Branch |" in out
         assert "Trunk is" in out

@@ -65,7 +65,7 @@ def test_the_documented_survey_and_verify_commands_run():
 
         ran = _run(survey, repo, "landed-squash")
         assert ran.returncode == 0, ran.stderr
-        assert "| Worktree | Branch |" in ran.stdout
+        assert "| Worktree | Dirty | Branch |" in ran.stdout
 
         ran = _run(verify, repo, "landed-squash")
         assert ran.returncode == 0, ran.stderr
@@ -75,3 +75,11 @@ def test_skill_md_never_calls_a_landed_branch_at_risk():
     text = SKILL_MD.read_text(encoding="utf-8")
     assert "A landed branch is never at risk" in text
     assert "no remote` is the urgent one" not in text
+
+
+def test_skill_md_documents_worktree_removal_and_never_forces_it():
+    """A forced remove deletes uncommitted work. The skill must never offer one."""
+    text = SKILL_MD.read_text(encoding="utf-8")
+    assert "worktree remove" in text
+    assert not re.search(r"worktree remove[^\n]*--force", text)
+    assert not re.search(r"--force[^\n]*worktree remove", text)
