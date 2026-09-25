@@ -29,9 +29,10 @@ jq empty .claude-plugin/plugin.json                 # the manifest is valid JSON
 python3 -m pytest skills/gitview/tests -q           # the tests pass
 ```
 
-CI runs those, plus two checks on the prose: no em dashes, and nothing that
-looks client-specific. British English, plain hyphens, no trailing full stops on
-headings.
+CI runs those, plus three checks on the prose: no em dashes, nothing that
+looks client-specific, and `${CLAUDE_SKILL_DIR}` always written with its braces,
+because Claude Code does not substitute the unbraced form. British English,
+plain hyphens, no trailing full stops on headings.
 
 ## What we will not accept
 
