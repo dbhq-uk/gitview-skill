@@ -41,8 +41,8 @@ the one that matters, and [`skills/gitview/references/safe-to-delete.md`](skills
 is the document to read before touching it. Both cheap ways to decide whether a
 branch is finished are wrong wherever a repository squashes on merge, and both
 fail **silently**: a commit count cannot answer it, and `git branch --merged`
-never sees it. gitview test-merges the trunk into a throwaway copy and compares
-trees because nothing cheaper is correct. A pull request that swaps that for a
+never sees it. gitview computes the merge of the trunk into each branch with
+`git merge-tree` and compares trees because nothing cheaper is correct. A pull request that swaps that for a
 faster check will be declined unless it comes with a repository where the faster
 check demonstrably agrees.
 

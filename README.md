@@ -25,9 +25,9 @@ The last column is the one that is hard. A branch merged by squash stays ahead o
 the trunk forever while contributing nothing, so commit counts cannot answer it
 and `git branch --merged` never sees it.
 
-gitview merges the trunk into a
-throwaway copy of each branch and compares the resulting tree against the
-trunk's. If they match, the branch adds nothing and can go.
+gitview computes the merge of the trunk into
+each branch, without touching any checkout, and compares the resulting tree
+against the trunk's. If they match, the branch adds nothing and can go.
 
 Both cheap checks fail **silently**, which is the worst failure mode available:
 the answer looks right. That is the whole reason this skill exists.
@@ -102,9 +102,9 @@ lists neither.
 Trunk is `origin/main`.
 
 Read the last column rather than the counts. `chore/bump-sdk` and
-`feat/vat-rounding` are **YES** because merging the trunk into a throwaway copy
-of each produces a tree identical to the trunk's - they add nothing, whatever
-their ahead count says.
+`feat/vat-rounding` are **YES** because merging the trunk into each produces a
+tree identical to the trunk's - they add nothing, whatever their ahead count
+says.
 
 The three refusals each name what would be lost: a real
 diff against the trunk, and for two of them no remote holding a copy of it.
@@ -130,24 +130,29 @@ local and remote SHAs so a wrong call can be undone, and the remote delete is
 leased to the SHA it checked, so a push that lands after the check makes the
 delete fail rather than destroy that commit.
 
-**gitview itself deletes nothing.** `gitview.py` is read only - it never deletes,
-pushes, merges, or checks out an existing branch. The deletions are run by the
-agent in your session, where you can see them and your own tool permissions
-apply.
+**gitview itself deletes nothing.** `gitview.py` never deletes, pushes, merges or
+checks out a branch, and never writes to your working tree, your index or any
+ref. The deletions are run by the agent in your session, where you can see them
+and your own tool permissions apply.
 
 ## How the safe-to-delete check works
 
 Read [`skills/gitview/references/safe-to-delete.md`](skills/gitview/references/safe-to-delete.md)
 before changing anything in that logic.
 
-In short: for each branch, gitview creates a throwaway git index and a detached
-worktree outside your repository, merges the trunk into a copy of the branch, and
-compares the resulting tree to the trunk's. Identical trees mean the branch
-contributes nothing, whatever its ahead count says.
+In short: for each branch, gitview runs `git merge-tree --write-tree` to compute
+what merging the trunk into it would produce, and compares that tree to the
+trunk's. Identical trees mean the branch contributes nothing, whatever its ahead
+count says.
 
-Both temporary artefacts are
-removed when the check finishes; your working tree and your index are never
-touched.
+`merge-tree` needs git 2.38 or later. It needs no worktree, runs no hooks and
+makes no commit. The one thing it writes is the merged trees and blobs, into the
+object store, where nothing refers to them and `git gc` removes them in due
+course. Your working tree, your index and your refs are never touched.
+
+On older git it falls back to a merge in a temporary worktree outside your
+repository, with hooks and signing switched off, and removes only that worktree
+afterwards. [SECURITY.md](SECURITY.md) lists exactly what each path writes.
 
 Design: [docs/superpowers/specs/2026-09-10-gitview-design.md](docs/superpowers/specs/2026-09-10-gitview-design.md)
 
