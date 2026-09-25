@@ -12,9 +12,11 @@ response within 48 hours.
 
 **Only the pull request lookup, and only through a tool you already trust.**
 gitview shells out to `gh pr list` on GitHub and `az repos pr list` on Azure
-DevOps, using whatever credential those CLIs already hold. It never handles a
-token itself and never makes an HTTP request of its own. `--no-pr` skips the
-lookup entirely and the skill then works offline.
+DevOps, using whatever credential those CLIs already hold. It lists open pull
+requests, and, only when a branch cannot be proved landed from the repository
+alone, recently merged ones. It never handles a token itself and never makes an
+HTTP request of its own. `--no-pr` skips both lookups and the skill then works
+offline.
 
 ### On disk
 

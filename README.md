@@ -93,8 +93,8 @@ lists neither.
 | Worktree | Branch | PR | Ahead | Behind | Unpushed | Safe to delete |
 |---|---|---|---|---|---|---|
 | checkout-service | `main` | - | 0 | 0 | 0 | no, trunk |
-| - | `chore/bump-sdk` | - | 1 | 1 | 0 | **YES** |
-| - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES** |
+| - | `chore/bump-sdk` | - | 1 | 1 | 0 | **YES**, adds nothing to trunk |
+| - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES**, adds nothing to trunk |
 | - | `fix/expired-card-retry` | - | 1 | 0 | 0 | no, 1 file changed, 1 insertion(+) |
 | - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
 | - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
@@ -107,6 +107,13 @@ Read the last column rather than the counts. `chore/bump-sdk` and
 `feat/vat-rounding` are **YES** because merging the trunk into each produces a
 tree identical to the trunk's - they add nothing, whatever their ahead count
 says.
+
+Every **YES** names the signal that proved it. "adds nothing to trunk" is that
+tree check. "landed as abc1234" means a trunk commit carries exactly the
+branch's whole diff, which is how a squash merge still shows once the trunk
+has edited the same lines and the tree check conflicts. "merged in PR 12" means
+a merged pull request's head is this exact commit. None of them ever matches
+on a branch name.
 
 The three refusals each name what would be lost: a real
 diff against the trunk, and for two of them no remote holding a copy of it.

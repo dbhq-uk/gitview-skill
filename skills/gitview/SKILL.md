@@ -21,7 +21,11 @@ Print the table as it comes. Do not re-sort it, re-format it, or drop rows to ma
 
 ## How to read it
 
-**Safe to delete is the column that answers the question.** It is computed by merging the trunk into the branch with `git merge-tree`, which touches no checkout, and comparing trees. `YES` means the branch adds nothing to the trunk.
+**Safe to delete is the column that answers the question.** `YES` means the branch adds nothing to the trunk, and what follows it names the proof:
+
+- `YES, adds nothing to trunk`: merging the trunk into the branch gives the trunk's tree. Computed with `git merge-tree`, which touches no checkout.
+- `YES, landed as abc1234`: that trunk commit carries exactly the branch's whole diff. This is a squash merge the trunk has since edited, where the tree check conflicts.
+- `YES, merged in PR 12`: a merged pull request's head is this exact commit. Matched on the SHA, never on the branch name.
 
 **Ahead is a commit count, not a measure of unlanded work.** A branch merged by squash stays ahead of the trunk forever while contributing nothing. Never tell someone a branch has unlanded work because its ahead number is large. [references/safe-to-delete.md](references/safe-to-delete.md) explains why, and why the two obvious cheaper checks are both wrong.
 
