@@ -92,3 +92,28 @@ def build(root):
     # A detached worktree, which must not crash anything.
     _git(repo, "worktree", "add", "--detach", os.path.join(root, "checkout-detached"), "trunk")
     return repo
+
+
+def git(repo, *args):
+    """Run git in a fixture repository, with a fixed identity. Returns stdout."""
+    return _git(repo, *args)
+
+
+def colleague_pushes(root, branch, name="colleague"):
+    """Somebody else pushes one more commit to BRANCH from their own clone.
+
+    Returns the SHA they pushed. The surveyed repository does not fetch here,
+    so the caller decides whether it has seen the push yet.
+    """
+    origin = os.path.join(root, "origin.git")
+    other = os.path.join(root, name)
+    if not os.path.isdir(other):
+        subprocess.run(["git", "clone", "-q", origin, other], check=True, capture_output=True)
+    _git(other, "fetch", "-q", "origin")
+    _git(other, "switch", "-q", "-C", branch, f"origin/{branch}")
+    _write(other, f"{name}.txt", "a follow-up after the merge\n")
+    _git(other, "add", "-A")
+    _git(other, "commit", "-m", "follow-up after the merge")
+    _git(other, "push", "-q", "origin", branch)
+    return _git(other, "rev-parse", "HEAD").strip()
+

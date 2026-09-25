@@ -40,11 +40,20 @@ destructive suggestion.
 
 `SKILL.md` instructs the agent to offer deletions only after showing the table,
 to ask first, and before each delete to re-verify the branch with
-`gitview.py --verify BRANCH` (exit code 0 means finished, anything else means
-stop), to print the commit SHA so a wrong call can be undone, and to refuse any
-branch that has a worktree or an open pull request. The `git branch -D` and
-`git push origin --delete` are run by the agent in your session, so they are
-visible to you and subject to your own tool permissions.
+`gitview.py --verify BRANCH`.
+
+`--verify` enforces the gates in code. It exits non-zero, and says why, for the
+trunk, for a branch that adds anything to the trunk, for a branch whose remote
+copy carries commits that have not landed, for a branch checked out in any
+worktree, and for a branch with an open pull request. If it cannot check for an
+open pull request it refuses rather than passes.
+
+On a pass it prints the local and remote SHAs, the undo commands, and the delete
+commands. The remote delete is `git push --force-with-lease=<branch>:<sha>`
+against the upstream's own remote and branch name, so if anybody pushes to that
+branch after the check, the delete is rejected instead of destroying their
+commit. The `git branch -D` and the push are run by the agent in your session,
+so they are visible to you and subject to your own tool permissions.
 
 A skill is instructions, not a sandbox. If you do not want an agent proposing
 branch deletions at all, do not install this one.
