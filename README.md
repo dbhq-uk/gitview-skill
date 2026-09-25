@@ -65,17 +65,21 @@ whole skill directory is symlinked untouched, while Codex does not, so its
 `SKILL.md` is rewritten at install time. Re-run the Codex one after editing
 `SKILL.md`.
 
-### Requirements
-
-Python 3 and `git`. Optionally `gh` or the Azure CLI, for the pull request
-column.
-
-
 ## Requirements
 
-Python 3, standard library only, and `git`. Nothing else: the safe-to-delete
-check is answered from the repository in front of it rather than from a
-forge API, which is why it works on a private remote you cannot query.
+Python 3, standard library only, and `git`. On git 2.38 or later the
+safe-to-delete check uses `git merge-tree` and takes milliseconds per branch.
+Older git uses a slower fallback.
+
+`gh` for GitHub, or the Azure CLI for Azure DevOps, is optional. With one, the
+table shows open pull requests, a merged pull request can prove a branch
+landed, and `--verify` checks for an open pull request before a delete.
+Without one, the pull request column shows dashes, and `--verify` refuses
+rather than guess until it is re-run with `--no-pr`.
+
+The safe-to-delete check itself is answered from the repository in front of
+it, not from a forge API, which is why it works on a private remote you cannot
+query.
 
 ## Use
 
@@ -97,7 +101,7 @@ lists neither.
 | - | - | `feat/vat-rounding` | - | 1 | 2 | 0 | **YES**, adds nothing to trunk |
 | - | - | `fix/expired-card-retry` | - | 1 | 0 | 0 | no, 1 file changed, 1 insertion(+) |
 | - | - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
-| - | - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
+| - | - | `wip/rename-basket` | - | 1 | 1 | no remote | no, 1 file changed, 1 insertion(+) |
 
 At risk of being lost: `spike/apple-pay` (no remote holds it), `wip/rename-basket` (no remote holds it).
 Trunk is `origin/main`.
