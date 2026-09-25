@@ -49,16 +49,21 @@ Before each delete:
    python3 "${CLAUDE_SKILL_DIR}/scripts/gitview.py" --verify BRANCH [PATH]
    ```
 
-   Exit code 0 means finished. Anything else means do not delete it, and say why.
+   It exits 0 only when every gate passes: the branch is not the trunk, it adds nothing to the trunk, its upstream adds nothing either, no worktree has it checked out, and it has no open pull request.
 
-2. **Print the commit SHA first**, so the branch can be restored if the call was wrong.
-3. **Refuse any branch that has a worktree or an open pull request**, and say so out loud rather than skipping it silently.
+   Anything else means do not delete it. Say which gate refused it, out loud rather than skipping it silently.
 
-```bash
-git rev-parse BRANCH                      # record this first
-git branch -D BRANCH
-git push origin --delete BRANCH
-```
+2. **Show the SHAs and the undo commands it printed**, local and remote, so the branch can be restored if the call was wrong.
+3. **Run the delete commands it printed, exactly as printed.** They have this shape:
+
+   ```bash
+   git -C PATH branch -D BRANCH
+   git -C PATH push --force-with-lease=REMOTE_BRANCH:REMOTE_SHA REMOTE --delete REMOTE_BRANCH
+   ```
+
+   The remote and its branch name come from the branch's upstream, not from `origin` and the local name. The lease makes the push fail if anybody pushed to the remote branch after the check. If it fails, stop and survey again. Never retry it without the lease.
+
+If the pull request lookup could not run, `--verify` refuses rather than passes. Tell the user why, and re-run it with `--no-pr` only after they confirm there is no open pull request.
 
 ### Pushing unpushed work
 

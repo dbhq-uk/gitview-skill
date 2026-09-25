@@ -66,3 +66,12 @@ def test_a_failing_cli_reports_its_first_line_of_stderr(monkeypatch):
     prs, reason = forge.list_prs("github", ".")
     assert prs == {}
     assert "not logged in" in reason
+
+
+def test_a_remote_on_this_machine_is_local_and_a_hosted_one_is_not():
+    assert forge.is_local("/srv/git/repo.git")
+    assert forge.is_local("../repo")
+    assert forge.is_local("file:///srv/git/repo.git")
+    assert not forge.is_local("git@github.com:owner/repo.git")
+    assert not forge.is_local("https://git.example.com/owner/repo.git")
+    assert not forge.is_local("ssh://git@git.example.com/owner/repo.git")

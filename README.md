@@ -122,10 +122,13 @@ bash docs/build-demo-fixture.sh
 python3 skills/gitview/scripts/gitview.py /tmp/gitview-demo/checkout-service
 ```
 
-It shows the table first, then offers deletions, and asks before each one. It
-will not delete a branch that has a worktree or an open pull request, it
-re-verifies each branch immediately before it goes, and it prints the commit SHA
-so a wrong call can be undone.
+It shows the table first, then offers deletions, and asks before each one.
+Immediately before each delete it runs `gitview.py --verify BRANCH`, which exits
+non-zero, with the reason, for a branch that has a worktree, an open pull
+request, or a remote copy somebody pushed to after it merged. It prints the
+local and remote SHAs so a wrong call can be undone, and the remote delete is
+leased to the SHA it checked, so a push that lands after the check makes the
+delete fail rather than destroy that commit.
 
 **gitview itself deletes nothing.** `gitview.py` is read only - it never deletes,
 pushes, merges, or checks out an existing branch. The deletions are run by the

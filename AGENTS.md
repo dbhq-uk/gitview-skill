@@ -36,10 +36,13 @@ user's session, not in the script.
 skill's most useful output is also its most dangerous: a list of branches
 somebody is about to delete. So `SKILL.md` requires the table first, then the
 offer, then a fresh `gitview.py --verify BRANCH` on each branch immediately
-before it goes, the commit SHA printed so a wrong call is recoverable, and a flat
-refusal for any branch with a worktree or an open pull request. A table is a
-snapshot and a repository worked by several sessions moves underneath it. Do not
-weaken this into "the table already said it was safe".
+before it goes. `--verify` enforces every gate in code, not in prose: the trunk,
+unlanded work on the branch or on its upstream, a worktree, and an open pull
+request all refuse, and a pull request lookup that cannot run refuses too. It
+prints the SHAs so a wrong call is recoverable, and the remote delete it prints
+is leased to the upstream SHA it checked. A table is a snapshot and a repository
+worked by several sessions moves underneath it. Do not weaken this into "the
+table already said it was safe", and do not drop the lease.
 
 **3. Safe to delete is computed, never inferred.** Read
 [`skills/gitview/references/safe-to-delete.md`](skills/gitview/references/safe-to-delete.md)

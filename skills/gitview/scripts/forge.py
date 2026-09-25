@@ -33,6 +33,16 @@ def detect(url):
     return None
 
 
+def is_local(url):
+    """A remote on this machine, a path or a file:// URL. It has no pull requests."""
+    if url.startswith("file://"):
+        return True
+    if "://" in url:
+        return False
+    # scp-like syntax, user@host:path, has a colon before the first slash.
+    return ":" not in url.split("/", 1)[0]
+
+
 def parse_azure(raw):
     found = {}
     for item in json.loads(raw or "[]"):
