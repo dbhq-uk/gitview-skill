@@ -6,6 +6,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import gitview
+import table
 from fixture import build
 
 
@@ -90,3 +91,15 @@ def test_the_whole_run_prints_a_table_and_names_the_trunk(capsys):
         out = capsys.readouterr().out
         assert "| Worktree | Dirty | Branch |" in out
         assert "Trunk is" in out
+
+
+def test_a_conflicting_branch_says_conflicts_in_the_rendered_table(engine):
+    """File names alone read like a summary of unlanded work."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = build(tmp)
+        rows, _ = gitview.survey(repo, want_prs=False)
+        lines = table.render(rows).splitlines()
+        conflicting = next(line for line in lines if "`conflicting`" in line)
+        assert conflicting.endswith("| no, conflicts in shared.txt |")
+        live = next(line for line in lines if "`live-work`" in line)
+        assert live.endswith("| no, 1 file changed, 1 insertion(+) |")
