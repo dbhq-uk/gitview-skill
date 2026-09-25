@@ -69,3 +69,9 @@ def test_the_documented_survey_and_verify_commands_run():
 
         ran = _run(verify, repo, "landed-squash")
         assert ran.returncode == 0, ran.stderr
+
+
+def test_skill_md_never_calls_a_landed_branch_at_risk():
+    text = SKILL_MD.read_text(encoding="utf-8")
+    assert "A landed branch is never at risk" in text
+    assert "no remote` is the urgent one" not in text

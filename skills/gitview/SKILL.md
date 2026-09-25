@@ -17,19 +17,29 @@ python3 "${CLAUDE_SKILL_DIR}/scripts/gitview.py" [PATH]
 
 Print the table as it comes. Do not re-sort it, re-format it, or drop rows to make it shorter.
 
+**It never fetches.** Unpushed and `gone` are only as fresh as the remote-tracking refs, and a note under the table says when this clone last fetched. If that is not recent, or no fetch is recorded, offer `git fetch --prune` and survey again before anyone relies on Unpushed or deletes anything.
+
 ## How to read it
 
 **Safe to delete is the column that answers the question.** It is computed by merging the trunk into the branch with `git merge-tree`, which touches no checkout, and comparing trees. `YES` means the branch adds nothing to the trunk.
 
 **Ahead is a commit count, not a measure of unlanded work.** A branch merged by squash stays ahead of the trunk forever while contributing nothing. Never tell someone a branch has unlanded work because its ahead number is large. [references/safe-to-delete.md](references/safe-to-delete.md) explains why, and why the two obvious cheaper checks are both wrong.
 
-**Unpushed reading `no remote` is the urgent one.** That work exists on one machine and nothing is backing it up.
+**Unpushed says how much of the branch exists only in this clone.**
+
+- A number counts commits not yet on its upstream.
+- `gone` means its upstream was deleted on the remote.
+- `on origin/x` means no upstream is set, but that remote-tracking ref already holds the tip.
+- `no remote` means no remote holds the tip at all.
+- `?` means git could not count. Treat it as unpushed.
+
+**A branch is at risk only when it is not landed** (Safe to delete is not `YES`) **and** its Unpushed is `gone`, `no remote`, or above 0. A landed branch is never at risk, whatever its Unpushed says: everything in it is already on the trunk. The survey lists the at-risk branches in the first note under the table.
 
 **The worktree column is a directory basename, not a branch name.** When the two disagree, say so. A directory named after a branch deleted weeks ago misleads whoever opens it next.
 
 ## What to say
 
-Lead with whatever is at risk of being lost, then what is finished, then what is in flight. Unpushed commits and branches with no remote come first, always.
+Lead with the `At risk of being lost` note when there is one, then what is finished, then what is in flight. If the notes mention stash entries, say so: they are local-only work too, and the table does not show them.
 
 Keep it short. The table is the answer; do not narrate every row back.
 
