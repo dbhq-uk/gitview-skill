@@ -27,6 +27,12 @@ Print the table as it comes. Do not re-sort it, re-format it, or drop rows to ma
 - `YES, landed as abc1234`: that trunk commit carries exactly the branch's whole diff. This is a squash merge the trunk has since edited, where the tree check conflicts.
 - `YES, merged in PR 12`: a merged pull request's head is this exact commit. Matched on the SHA, never on the branch name.
 
+A `no` says why not:
+
+- `no, 1 file changed, 2 insertions(+)`: what the branch would still add to the trunk.
+- `no, conflicts in shared.txt`: merging the trunk into the branch conflicts in those files, and no other signal proved it landed. Treat it as unfinished.
+- `no, trunk`, `no, upstream has unlanded commits`, or `no, landed but its worktree ...`: the reason is in the words.
+
 **Ahead is a commit count, not a measure of unlanded work.** A branch merged by squash stays ahead of the trunk forever while contributing nothing. Never tell someone a branch has unlanded work because its ahead number is large. [references/safe-to-delete.md](references/safe-to-delete.md) explains why, and why the two obvious cheaper checks are both wrong.
 
 **Unpushed says how much of the branch exists only in this clone.**

@@ -33,9 +33,15 @@ def _judge(cwd, trunk_ref, ref, merged):
 
 
 def _safe_label(result):
-    """YES names the signal that proved it. A no says why not."""
+    """YES names the signal that proved it. A no says why not.
+
+    A conflict is named as one. Its detail is only file names, and on their
+    own they read like a summary of unlanded work.
+    """
     if result.state == "landed":
         return f"YES, {result.detail}"
+    if result.state == "conflicts":
+        return f"no, conflicts in {result.detail}"
     return f"no, {result.detail}"
 
 
