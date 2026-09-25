@@ -21,7 +21,7 @@ def test_the_squashed_branch_is_the_one_marked_safe():
     with tempfile.TemporaryDirectory() as tmp:
         repo = build(tmp)
         rows, _ = gitview.survey(repo, want_prs=False)
-        safe = {r.branch for r in rows if r.safe == "YES"}
+        safe = {r.branch for r in rows if r.safe.startswith("YES")}
         assert "landed-squash" in safe
         assert "live-work" not in safe
         assert "conflicting" not in safe
@@ -34,7 +34,7 @@ def test_a_branch_ahead_of_trunk_can_still_be_safe_to_delete():
         rows, _ = gitview.survey(repo, want_prs=False)
         row = next(r for r in rows if r.branch == "landed-squash")
         assert row.ahead > 0
-        assert row.safe == "YES"
+        assert row.safe == "YES, adds nothing to trunk"
 
 
 def test_the_trunk_is_never_offered_for_deletion():

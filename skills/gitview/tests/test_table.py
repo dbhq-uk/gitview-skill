@@ -39,3 +39,9 @@ def test_a_pipe_in_a_branch_name_cannot_break_the_table():
     assert "odd\\|name" in row, "the pipe must be escaped"
     delimiters = row.replace("\\|", "").count("|")
     assert delimiters == 8, "seven columns means eight delimiters"
+
+
+def test_a_yes_keeps_its_emphasis_and_names_its_signal():
+    row = render([_row("-", "old", safe="YES, landed as abc1234")]).splitlines()[2]
+    assert "**YES**, landed as abc1234" in row
+

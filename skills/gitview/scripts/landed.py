@@ -196,10 +196,83 @@ def _worktree_merge(cwd, trunk_ref, branch):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _bytes(cwd, args, stdin=None):
+    """git output as bytes. Diffs can hold any encoding, so they are never decoded."""
+    return subprocess.run(
+        ["git", "-C", cwd, *args],
+        input=stdin,
+        capture_output=True,
+        env=dict(os.environ, GIT_LITERAL_PATHSPECS="1"),
+    )
+
+
+def _patch_ids(cwd, patch):
+    """(patch id, commit) pairs for a patch or a `git log -p` stream."""
+    out = _bytes(cwd, ["patch-id", "--stable"], stdin=patch).stdout.decode("ascii", "replace")
+    return [tuple(line.split()[:2]) for line in out.splitlines() if len(line.split()) >= 2]
+
+
+# Diff options shared by both sides of the comparison, so the same change gets
+# the same patch id wherever it appears. Renames off, because a rename found on
+# one side and not the other would give two ids for one change.
+_DIFF = ["--no-renames", "--no-ext-diff", "--no-color", "--no-textconv"]
+
+# Path-limiting the trunk's log keeps it fast. Past this many paths the command
+# line gets long, so the whole range is read instead.
+_MAX_PATHS = 500
+
+
+def squash_landing(cwd, trunk_ref, branch):
+    """The trunk commit that applied the branch's whole diff in one go, or None.
+
+    This is how a squash merge lands. Once the trunk edits the same lines again,
+    merging the trunk back into the branch conflicts, so the tree check cannot
+    see it, but the squash commit still carries exactly the branch's diff from
+    its merge base. Same idea as git-trim and git-delete-squashed.
+    """
+    base = gitrepo.git(["merge-base", trunk_ref, branch], cwd, check=False)
+    if not base:
+        return None
+    names = [
+        name
+        for name in _bytes(cwd, ["diff", "--name-only", "-z", *_DIFF, base, branch]).stdout.split(b"\0")
+        if name
+    ]
+    if not names:
+        return None
+    ids = _patch_ids(cwd, _bytes(cwd, ["diff", *_DIFF, base, branch]).stdout)
+    if not ids:
+        return None
+    wanted = ids[0][0]
+    paths = ["--", *(os.fsdecode(name) for name in names)] if len(names) <= _MAX_PATHS else []
+    log = _bytes(
+        cwd,
+        ["log", "-p", "--no-merges", *_DIFF, "--format=commit %H", f"{base}..{trunk_ref}", *paths],
+    ).stdout
+    for patch_id, commit in _patch_ids(cwd, log):
+        if patch_id == wanted:
+            return commit
+    return None
+
+
 def verdict(cwd, trunk_ref, branch):
-    """Is this branch finished? merge-tree where git has it, else the fallback."""
+    """Is this branch finished? Two signals, both computed from the repository.
+
+    First the tree check: merging the trunk into the branch gives the trunk's
+    tree. That is merge-tree where git has it, else the fallback. Where it says
+    no, a squash landing: a trunk commit since the merge base whose patch is the
+    branch's whole diff. A pull request signal is added by the caller, which is
+    the only place that talks to a forge.
+    """
     if has_merge_tree():
-        return _merge_tree(cwd, trunk_ref, branch)
-    if fast_is_landed(cwd, trunk_ref, branch):
-        return Verdict("landed", "adds nothing to trunk")
-    return _worktree_merge(cwd, trunk_ref, branch)
+        result = _merge_tree(cwd, trunk_ref, branch)
+    elif fast_is_landed(cwd, trunk_ref, branch):
+        result = Verdict("landed", "adds nothing to trunk")
+    else:
+        result = _worktree_merge(cwd, trunk_ref, branch)
+    if result.state == "landed":
+        return result
+    landing = squash_landing(cwd, trunk_ref, branch)
+    if landing:
+        return Verdict("landed", f"landed as {landing[:7]}")
+    return result

@@ -18,6 +18,27 @@ import landed  # noqa: E402
 import table  # noqa: E402
 
 
+def _judge(cwd, trunk_ref, ref, merged):
+    """landed.verdict, plus the third signal: a merged pull request whose head
+    is exactly this commit. Matched on the SHA, never on the branch name.
+    """
+    result = landed.verdict(cwd, trunk_ref, ref)
+    if result.state == "landed" or merged is None:
+        return result
+    sha = gitrepo.git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], cwd, check=False)
+    number = merged.number(sha)
+    if number:
+        return landed.Verdict("landed", f"merged in PR {number}")
+    return result
+
+
+def _safe_label(result):
+    """YES names the signal that proved it. A no says why not."""
+    if result.state == "landed":
+        return f"YES, {result.detail}"
+    return f"no, {result.detail}"
+
+
 def _unpushed(cwd, branch):
     """How much of the branch exists only in this clone.
 
@@ -40,7 +61,7 @@ def at_risk(row):
     A landed branch is never at risk, whatever its Unpushed says: everything in
     it is already on the trunk.
     """
-    if row.safe == "YES":
+    if row.safe.startswith("YES"):
         return False
     if row.unpushed in ("gone", "no remote", "?"):
         return True
@@ -83,11 +104,14 @@ def survey(cwd, want_prs=True):
     trunk_ref = gitrepo.trunk_ref(cwd, trunk_name)
     notes.append(f"Trunk is `{trunk_ref}`.")
 
-    prs = {}
+    prs, merged = {}, None
     if want_prs:
-        prs, reason = forge.list_prs(forge.detect(gitrepo.remote_url(cwd)), cwd)
+        kind = forge.detect(gitrepo.remote_url(cwd))
+        prs, reason = forge.list_prs(kind, cwd)
         if reason:
             notes.append(f"Pull request column skipped: {reason}.")
+        else:
+            merged = forge.MergedHeads(kind, cwd)
 
     checkouts = gitrepo.worktrees(cwd)
     rows = []
@@ -98,9 +122,11 @@ def survey(cwd, want_prs=True):
         if name == trunk_name:
             safe = "no, trunk"
         else:
-            result = landed.verdict(cwd, trunk_ref, ref)
-            safe = "YES" if result.state == "landed" else f"no, {result.detail}"
-            if safe == "YES" and _upstream_has_unlanded_work(cwd, trunk_name, trunk_ref, name):
+            result = _judge(cwd, trunk_ref, ref, merged)
+            safe = _safe_label(result)
+            if result.state == "landed" and _upstream_has_unlanded_work(
+                cwd, trunk_name, trunk_ref, name, merged
+            ):
                 safe = "no, upstream has unlanded commits"
 
         ahead = gitrepo.count(cwd, f"{trunk_ref}..{ref}")
@@ -156,19 +182,19 @@ def _deletable_upstream(cwd, trunk_name, up):
     return up.ref != gitrepo.remote_head(cwd, up.remote)
 
 
-def _upstream_has_unlanded_work(cwd, trunk_name, trunk_ref, name):
+def _upstream_has_unlanded_work(cwd, trunk_name, trunk_ref, name, merged=None):
     """Somebody pushed to the remote copy after it landed, or never merged it."""
     up = gitrepo.upstream(cwd, name)
     if not _deletable_upstream(cwd, trunk_name, up):
         return False
     if up.sha == gitrepo.local_sha(cwd, name):
         return False
-    return landed.verdict(cwd, trunk_ref, up.ref).state != "landed"
+    return _judge(cwd, trunk_ref, up.ref, merged).state != "landed"
 
 
 def _describe(result):
     if result.state == "landed":
-        return "adds nothing to trunk"
+        return result.detail
     if result.state == "conflicts":
         return f"conflicts with the trunk in {result.detail}"
     return result.detail
@@ -228,8 +254,13 @@ def _verify(cwd, branch, want_prs=True):
 
     trunk_ref = gitrepo.trunk_ref(cwd, trunk_name)
     refusals = []
+    merged = None
+    if want_prs:
+        url = gitrepo.remote_url(cwd)
+        kind = forge.detect(url) if url else None
+        merged = forge.MergedHeads(kind, cwd) if kind else None
 
-    result = landed.verdict(cwd, trunk_ref, f"refs/heads/{branch}")
+    result = _judge(cwd, trunk_ref, f"refs/heads/{branch}", merged)
     print(f"{branch}: {result.state} ({_describe(result)})")
     print(f"local:  refs/heads/{branch} at {sha}")
     if result.state != "landed":
@@ -244,7 +275,7 @@ def _verify(cwd, branch, want_prs=True):
     elif not _deletable_upstream(cwd, trunk_name, up):
         print(f"remote: the upstream is {up.ref}, which gitview never deletes")
     else:
-        up_result = landed.verdict(cwd, trunk_ref, up.ref)
+        up_result = _judge(cwd, trunk_ref, up.ref, merged)
         print(f"remote: {up.remote} {up.remote_ref} at {up.sha}, {_describe(up_result)}")
         if up_result.state != "landed":
             refusals.append(

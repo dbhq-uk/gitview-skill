@@ -32,7 +32,10 @@ def _escape(value):
 
 
 def _safe(value):
-    return "**YES**" if value == "YES" else _escape(value)
+    """Bold the YES so it is findable. What follows it names the proof."""
+    if value.startswith("YES"):
+        return "**YES**" + _escape(value[3:])
+    return _escape(value)
 
 
 def render(rows):

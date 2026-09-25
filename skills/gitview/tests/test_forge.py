@@ -75,3 +75,25 @@ def test_a_remote_on_this_machine_is_local_and_a_hosted_one_is_not():
     assert not forge.is_local("git@github.com:owner/repo.git")
     assert not forge.is_local("https://git.example.com/owner/repo.git")
     assert not forge.is_local("ssh://git@git.example.com/owner/repo.git")
+
+
+def test_merged_pull_requests_are_keyed_by_head_sha_not_name():
+    raw = '[{"number": 12, "headRefName": "fix/y", "headRefOid": "abc123"}]'
+    assert forge.parse_merged_github(raw) == {"abc123": "12"}
+    raw = '[{"pullRequestId": 7, "head": "def456"}]'
+    assert forge.parse_merged_azure(raw) == {"def456": "7"}
+
+
+def test_the_merged_lookup_is_made_once_and_only_when_asked(monkeypatch):
+    calls = []
+
+    def lookup(kind, cwd):
+        calls.append(kind)
+        return {"abc123": "12"}, None
+
+    monkeypatch.setattr(forge, "list_merged", lookup)
+    heads = forge.MergedHeads("github", ".")
+    assert calls == []
+    assert heads.number("abc123") == "12"
+    assert heads.number("other") is None
+    assert calls == ["github"]

@@ -46,6 +46,18 @@ A no answer proves nothing. `read-tree` performs a trivial merge and refuses any
 
 The worktree is removed in a `finally` block, including when the merge raises, and only that worktree is removed. Never `git worktree prune`: it acts on every worktree in the repository, and a worktree whose directory is briefly absent loses its registration, after which `git branch -D` will delete a branch still checked out there.
 
+## When the trunk has edited the same lines since
+
+A squash merge lands the branch's whole diff as one trunk commit. If the trunk later edits the same lines, merging the trunk back into the branch conflicts, and the tree check reports conflicts for a branch that has fully landed. Nothing is lost, but the branch is never offered for deletion, and finished branches pile up.
+
+Two more signals catch it, and either one is enough.
+
+**The squashed patch id.** `git diff <merge-base> <branch> | git patch-id --stable` gives one id for the branch's whole change. If a trunk commit since the merge base has the same id, that commit is where the branch landed, and the column says `YES, landed as <sha>`. git-trim and git-delete-squashed use the same method. Both sides are diffed with renames off, so one change cannot get two ids.
+
+**A merged pull request's head.** When the forge lookup is available, a merged pull request whose head SHA is exactly the branch's tip proves the branch landed, and the column says `YES, merged in PR <n>`. gh-poi uses the same test.
+
+**Never by name.** A branch name is reused. One name can have several merged pull requests and new work nobody has merged, and matching on the name would call that new work landed. Both signals compare commits and patches, never names.
+
 ## What the columns cannot tell you
 
 **Ahead is a commit count against the trunk.** A branch merged by squash stays ahead forever. Reading a large ahead number as "unlanded work" is the same mistake in a different form, and the table deliberately puts the safe-to-delete column last so it reads as the conclusion rather than as one number among several.

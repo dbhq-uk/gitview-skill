@@ -117,3 +117,28 @@ def colleague_pushes(root, branch, name="colleague"):
     _git(other, "push", "-q", "origin", branch)
     return _git(other, "rev-parse", "HEAD").strip()
 
+
+def squash_then_edit(repo, name="squashed-then-edited"):
+    """A two-commit branch squash-merged into the trunk, then the trunk edits
+    the same line. Merging the trunk back into the branch now conflicts, so
+    the tree check cannot see that it landed. Returns the squash commit.
+    """
+    _git(repo, "switch", "-q", "-c", name, "trunk")
+    _write(repo, "notes.txt", "one\ntwo\nthree\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "notes, first pass")
+    _write(repo, "notes.txt", "one\nTWO\nthree\n")
+    _write(repo, "extra.txt", "extra\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "notes, second pass")
+    _git(repo, "switch", "-q", "trunk")
+    _git(repo, "merge", "--squash", name)
+    _git(repo, "commit", "-m", "squash: notes")
+    landing = _git(repo, "rev-parse", "HEAD").strip()
+    _write(repo, "notes.txt", "one\n2\nthree\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "trunk rewrites the same line")
+    _git(repo, "push", "-q", "origin", "trunk")
+    _git(repo, "push", "-q", "-u", "origin", name)
+    return landing
+

@@ -71,7 +71,7 @@ def test_a_landed_branch_is_never_at_risk():
         rows, notes = gitview.survey(repo, want_prs=False)
         row = _row(rows, "redone")
         assert row.unpushed == "no remote"
-        assert row.safe == "YES"
+        assert row.safe.startswith("YES")
         assert not gitview.at_risk(row)
         assert "redone" not in _risk_note(notes)
 
