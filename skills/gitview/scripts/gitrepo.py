@@ -1,6 +1,7 @@
 """Every git subprocess call gitview makes. Nothing here writes to the repository."""
 import os
 import subprocess
+import time
 from dataclasses import dataclass
 
 
@@ -70,17 +71,45 @@ def worktrees(cwd):
 @dataclass
 class Branch:
     name: str
-    upstream: object  # str or None
+    upstream: object  # the full upstream ref, such as refs/remotes/origin/x, or None
+    gone: bool = False  # an upstream is configured but its ref no longer exists
 
 
 def branches(cwd):
-    out = git(["for-each-ref", "--format=%(refname:short)%09%(upstream:short)", "refs/heads/"], cwd)
+    out = git(
+        ["for-each-ref", "--format=%(refname)%09%(upstream)%09%(upstream:track)", "refs/heads/"],
+        cwd,
+    )
     result = []
     for line in out.splitlines():
-        name, _, upstream = line.partition("\t")
-        if name:
-            result.append(Branch(name=name, upstream=upstream or None))
+        refname, upstream, track = (line.split("\t") + ["", ""])[:3]
+        if refname.startswith("refs/heads/"):
+            result.append(
+                Branch(
+                    name=refname[len("refs/heads/"):],
+                    upstream=upstream or None,
+                    gone=track == "[gone]",
+                )
+            )
     return result
+
+
+def remote_holding(cwd, name):
+    """A remote-tracking ref that already contains the branch's tip, or None.
+
+    Prefers one with the branch's own name. A branch pushed without -u has no
+    upstream, but its commits are no less backed up for that.
+    """
+    out = git(
+        ["for-each-ref", "--contains", f"refs/heads/{name}", "--format=%(refname:short)", "refs/remotes/"],
+        cwd,
+        check=False,
+    )
+    holders = [ref for ref in out.splitlines() if ref and not ref.endswith("/HEAD")]
+    for ref in holders:
+        if ref.split("/", 1)[-1] == name:
+            return ref
+    return holders[0] if holders else None
 
 
 @dataclass
@@ -135,8 +164,36 @@ def remote_head(cwd, remote):
 
 
 def count(cwd, spec):
+    """Commits in a range, or None when git could not count them.
+
+    Never 0 on failure. A range whose end has gone would otherwise read as
+    "nothing unpushed", which is the one wrong answer that loses work.
+    """
     out = git(["rev-list", "--count", spec], cwd, check=False)
-    return int(out) if out.isdigit() else 0
+    return int(out) if out.isdigit() else None
+
+
+def stash_count(cwd):
+    out = git(["stash", "list"], cwd, check=False)
+    return len(out.splitlines()) if out else 0
+
+
+def last_fetch(cwd):
+    """Seconds since this clone last fetched, from any worktree, or None if never.
+
+    Every worktree keeps its own FETCH_HEAD, so the newest of them is the
+    freshest the remote-tracking refs can be.
+    """
+    common = git(["rev-parse", "--git-common-dir"], cwd, check=False)
+    if not common:
+        return None
+    common = os.path.abspath(os.path.join(cwd, common))
+    candidates = [os.path.join(common, "FETCH_HEAD")]
+    admin = os.path.join(common, "worktrees")
+    if os.path.isdir(admin):
+        candidates += [os.path.join(admin, entry, "FETCH_HEAD") for entry in os.listdir(admin)]
+    times = [os.path.getmtime(path) for path in candidates if os.path.isfile(path)]
+    return time.time() - max(times) if times else None
 
 
 def remote_url(cwd):

@@ -18,6 +18,62 @@ import landed  # noqa: E402
 import table  # noqa: E402
 
 
+def _unpushed(cwd, branch):
+    """How much of the branch exists only in this clone.
+
+    A number counts commits not on its upstream. `gone` means the upstream was
+    deleted on the remote. `on <ref>` means no upstream is set but a remote
+    already holds the tip. `no remote` means no remote holds it at all.
+    """
+    if branch.gone:
+        return "gone"
+    if branch.upstream and branch.upstream.startswith("refs/remotes/"):
+        unpushed = gitrepo.count(cwd, f"{branch.upstream}..refs/heads/{branch.name}")
+        return "?" if unpushed is None else str(unpushed)
+    holder = gitrepo.remote_holding(cwd, branch.name)
+    return f"on {holder}" if holder else "no remote"
+
+
+def at_risk(row):
+    """Not landed, and some of it exists nowhere but here.
+
+    A landed branch is never at risk, whatever its Unpushed says: everything in
+    it is already on the trunk.
+    """
+    if row.safe == "YES":
+        return False
+    if row.unpushed in ("gone", "no remote", "?"):
+        return True
+    return row.unpushed.isdigit() and int(row.unpushed) > 0
+
+
+def _ago(seconds):
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return "less than a minute ago"
+    if minutes < 120:
+        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+    hours = minutes // 60
+    if hours < 48:
+        return f"{hours} hours ago"
+    return f"{hours // 24} days ago"
+
+
+def _fetch_note(cwd):
+    if not gitrepo.git(["remote"], cwd, check=False):
+        return None
+    since = gitrepo.last_fetch(cwd)
+    if since is None:
+        return (
+            "No fetch is recorded in this clone, so the remote-tracking refs may be stale. "
+            "`git fetch --prune` refreshes them."
+        )
+    return (
+        f"Remote-tracking refs were last fetched {_ago(since)}. "
+        "`git fetch --prune` refreshes them."
+    )
+
+
 def survey(cwd, want_prs=True):
     """Return (rows, notes). Notes are things the reader needs to know."""
     notes = []
@@ -37,31 +93,53 @@ def survey(cwd, want_prs=True):
     rows = []
     for branch in gitrepo.branches(cwd):
         name = branch.name
-        if branch.upstream:
-            unpushed = str(gitrepo.count(cwd, f"{branch.upstream}..{name}"))
-        else:
-            unpushed = "no remote"
+        ref = f"refs/heads/{name}"
 
         if name == trunk_name:
             safe = "no, trunk"
         else:
-            result = landed.verdict(cwd, trunk_ref, f"refs/heads/{name}")
+            result = landed.verdict(cwd, trunk_ref, ref)
             safe = "YES" if result.state == "landed" else f"no, {result.detail}"
             if safe == "YES" and _upstream_has_unlanded_work(cwd, trunk_name, trunk_ref, name):
                 safe = "no, upstream has unlanded commits"
 
+        ahead = gitrepo.count(cwd, f"{trunk_ref}..{ref}")
+        behind = gitrepo.count(cwd, f"{ref}..{trunk_ref}")
         rows.append(
             table.Row(
                 worktree=checkouts.get(name, "-"),
                 branch=name,
                 pr=prs.get(name, "-"),
-                ahead=gitrepo.count(cwd, f"{trunk_ref}..{name}"),
-                behind=gitrepo.count(cwd, f"{name}..{trunk_ref}"),
-                unpushed=unpushed,
+                ahead="?" if ahead is None else ahead,
+                behind="?" if behind is None else behind,
+                unpushed=_unpushed(cwd, branch),
                 safe=safe,
             )
         )
+
+    risky = [row for row in table.order(rows) if at_risk(row)]
+    if risky:
+        listed = ", ".join(f"`{row.branch}` ({_risk_reason(row.unpushed)})" for row in risky)
+        notes.insert(0, f"At risk of being lost: {listed}.")
+
+    fetched = _fetch_note(cwd)
+    if fetched:
+        notes.append(fetched)
+    stashes = gitrepo.stash_count(cwd)
+    if stashes:
+        entries = "1 stash entry exists" if stashes == 1 else f"{stashes} stash entries exist"
+        notes.append(f"{entries} in this clone. Stashes are local only and are not in the table.")
     return rows, notes
+
+
+def _risk_reason(unpushed):
+    if unpushed == "gone":
+        return "its upstream was deleted on the remote"
+    if unpushed == "no remote":
+        return "no remote holds it"
+    if unpushed == "?":
+        return "could not count its unpushed commits"
+    return f"{unpushed} unpushed"
 
 
 def _deletable_upstream(cwd, trunk_name, up):

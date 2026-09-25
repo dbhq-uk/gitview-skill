@@ -99,7 +99,9 @@ lists neither.
 | - | `spike/apple-pay` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
 | - | `wip/rename-basket` | - | 1 | 0 | no remote | no, 1 file changed, 1 insertion(+) |
 
+At risk of being lost: `spike/apple-pay` (no remote holds it), `wip/rename-basket` (no remote holds it).
 Trunk is `origin/main`.
+No fetch is recorded in this clone, so the remote-tracking refs may be stale. `git fetch --prune` refreshes them.
 
 Read the last column rather than the counts. `chore/bump-sdk` and
 `feat/vat-rounding` are **YES** because merging the trunk into each produces a
@@ -108,6 +110,9 @@ says.
 
 The three refusals each name what would be lost: a real
 diff against the trunk, and for two of them no remote holding a copy of it.
+Those two are the at-risk note under the table: not landed, and nowhere but
+here. A landed branch is never at risk, even with no remote, because its
+content is already on the trunk.
 
 It is a markdown table because your agent renders it. The table above is the
 output pasted in, not a screenshot of one - so it stays selectable, searchable
