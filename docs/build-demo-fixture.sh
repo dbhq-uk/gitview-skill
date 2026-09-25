@@ -26,8 +26,8 @@ git add -A && git commit -q -m "checkout service, first cut"
 git branch -M main
 git push -q -u origin main
 
-commit_on () {  # commit_on <branch> <file> <line> <message>
-  git checkout -q -b "$1" main
+commit_on () {  # commit_on <branch> <file> <line> <message> [base]
+  git checkout -q -b "$1" "${5:-main}"
   printf '%s\n' "$3" >> "$2"
   git add -A && git commit -q -m "$4"
 }
@@ -57,8 +57,9 @@ git push -q -u origin fix/expired-card-retry
 # 4. UNPUSHED WORK. Deleting this loses the only copy.
 commit_on spike/apple-pay docs/pricing.md "Apple Pay needs a merchant id." "spike: apple pay"
 
-# 5. NO REMOTE AT ALL, and behind the trunk.
-commit_on wip/rename-basket README.md "Renaming basket to cart throughout." "start the rename"
+# 5. NO REMOTE AT ALL, and behind the trunk: it starts before the last squash
+#    merge, so Behind reads 1. Behind is not a sign of being finished.
+commit_on wip/rename-basket README.md "Renaming basket to cart throughout." "start the rename" main~1
 
 git checkout -q main
 echo "built $WORK"

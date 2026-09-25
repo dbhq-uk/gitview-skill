@@ -102,6 +102,7 @@ This repository was `devskills` until 17 September 2026, a pack of two skills.
 It was split because its two skills shared no API, no credential and no subject -
 this file used to say they had "nothing in common beyond being things a developer
 needs mid-task", which is an argument for two repositories rather than one. The
-other half is [jira](https://github.com/dbhq-uk/jira-skill). GitHub redirects the
+other half is [atlassian](https://github.com/dbhq-uk/atlassian-skill), then
+called jira. GitHub redirects the
 old `dbhq-uk/devskills` URL here; the plugin is now `gitview@dbhq` rather than
 `devskills@dbhq`.
