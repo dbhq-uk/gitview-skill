@@ -10,7 +10,7 @@ One table: worktree, branch, open pull request, ahead, behind, unpushed, and whe
 ## Run it
 
 ```bash
-python3 "$CLAUDE_SKILL_DIR/scripts/gitview.py" [PATH]
+python3 "${CLAUDE_SKILL_DIR}/scripts/gitview.py" [PATH]
 ```
 
 `PATH` defaults to the current directory. Add `--no-pr` to skip the pull request lookup, which makes it work offline.
@@ -46,7 +46,7 @@ Before each delete:
 1. **Re-verify it.** A table is a snapshot, and a repository worked by several sessions moves underneath it.
 
    ```bash
-   python3 "$CLAUDE_SKILL_DIR/scripts/gitview.py" --verify BRANCH [PATH]
+   python3 "${CLAUDE_SKILL_DIR}/scripts/gitview.py" --verify BRANCH [PATH]
    ```
 
    Exit code 0 means finished. Anything else means do not delete it, and say why.

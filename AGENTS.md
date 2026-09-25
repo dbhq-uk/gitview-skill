@@ -55,7 +55,9 @@ installed at runtime, which is why there is nothing to keep patched.
 ## Conventions
 
 - Any path `SKILL.md` names goes through `${CLAUDE_SKILL_DIR}`, which Claude Code
-  substitutes for personal, project and plugin installs alike. **Never hardcode
+  substitutes for personal, project and plugin installs alike. **The braces are
+  required**: Claude Code leaves the unbraced `$CLAUDE_SKILL_DIR` for the shell,
+  where it is not set, and CI fails on it. **Never hardcode
   `~/.claude/skills/gitview` or any absolute path** - it is wrong under a Codex
   install and wrong under a plugin install. `install-codex.sh` rewrites the
   variable at install time because Codex does not substitute it.
@@ -76,7 +78,8 @@ jq empty .claude-plugin/plugin.json
 python3 -m pytest skills/gitview/tests -q
 ```
 
-CI runs those plus the two prose checks. The tests are worth more than they look:
+CI runs those, the two prose checks, and a check that `SKILL.md` uses the
+braced `${CLAUDE_SKILL_DIR}`. The tests are worth more than they look:
 the fixture builds real git repositories, including the squash-merged-then-trunk-moved
 case that defeats both naive checks, so a change that breaks the finished-branch
 logic fails rather than quietly returning the wrong verdict.
