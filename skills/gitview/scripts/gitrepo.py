@@ -20,19 +20,30 @@ def git(args, cwd, check=True):
 
 
 def is_repo(cwd):
-    return git(["rev-parse", "--is-inside-work-tree"], cwd, check=False) == "true"
+    """A working tree, or a bare repository, which has branches but no checkout."""
+    answers = git(["rev-parse", "--is-inside-work-tree", "--is-bare-repository"], cwd, check=False)
+    return "true" in answers.split()
+
+
+def is_bare(cwd):
+    return git(["rev-parse", "--is-bare-repository"], cwd, check=False) == "true"
 
 
 def trunk(cwd):
     """The repository's main line, discovered rather than assumed.
 
-    origin/HEAD is the honest answer where it exists. Falling back to main then
-    master covers a repository with no remote. None says plainly that nothing
-    else in this table would mean anything.
+    origin/HEAD is the honest answer where it exists. In a bare repository
+    HEAD is the default branch, the one a clone checks out. Falling back to
+    main then master covers a repository with no remote. None says plainly
+    that nothing else in this table would mean anything.
     """
     head = git(["symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"], cwd, check=False)
     if head:
         return head.split("refs/remotes/origin/", 1)[-1]
+    if is_bare(cwd):
+        head = git(["symbolic-ref", "--quiet", "HEAD"], cwd, check=False)
+        if head.startswith("refs/heads/") and git(["rev-parse", "--verify", "--quiet", head], cwd, check=False):
+            return head[len("refs/heads/"):]
     for name in ("main", "master"):
         if git(["rev-parse", "--verify", "--quiet", name], cwd, check=False):
             return name
@@ -47,16 +58,130 @@ def trunk_ref(cwd, name):
     return name
 
 
-def worktree_paths(cwd):
-    """Map branch name to the full path of the worktree holding it."""
+@dataclass
+class Worktree:
+    path: str
+    head: object = None  # the commit checked out, or None
+    branch: object = None  # the branch checked out, or None when detached or bare
+    bare: bool = False  # the bare repository itself, which has no checkout
+    locked: bool = False
+    prunable: bool = False  # git says its directory has gone
+    main: bool = False  # the first worktree, which git will not remove
+
+    @property
+    def missing(self):
+        return not os.path.isdir(self.path)
+
+
+def worktree_list(cwd):
+    """Every worktree git knows about, with the state git records for it."""
     out = git(["worktree", "list", "--porcelain"], cwd, check=False)
-    found, path = {}, None
+    found, current = [], None
     for line in out.splitlines():
         if line.startswith("worktree "):
-            path = line.split(" ", 1)[1]
-        elif line.startswith("branch refs/heads/") and path:
-            found[line[len("branch refs/heads/"):]] = path
+            current = Worktree(path=line.split(" ", 1)[1], main=not found)
+            found.append(current)
+        elif current is None:
+            continue
+        elif line.startswith("HEAD "):
+            current.head = line.split(" ", 1)[1]
+        elif line.startswith("branch refs/heads/"):
+            current.branch = line[len("branch refs/heads/"):]
+        elif line == "bare":
+            current.bare = True
+        elif line.split(" ", 1)[0] == "locked":
+            current.locked = True
+        elif line.split(" ", 1)[0] == "prunable":
+            current.prunable = True
     return found
+
+
+def worktree_paths(cwd):
+    """Map branch name to the full path of the worktree holding it."""
+    return {tree.branch: tree.path for tree in worktree_list(cwd) if tree.branch}
+
+
+def _status(path, *extra):
+    """The NUL-separated fields of `git status --porcelain=v1 -z` at PATH, or None.
+
+    `--no-optional-locks` stops status refreshing the index, which would be a
+    write, and fsmonitor is off so no monitor script or daemon is started.
+    Output is read as bytes because a file name can be in any encoding.
+    """
+    if not os.path.isdir(path):
+        return None
+    result = subprocess.run(
+        [
+            "git", "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", path,
+            "status", "--porcelain=v1", "-z", "--untracked-files=normal", *extra,
+        ],
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        return None
+    fields, index = [], 0
+    raw = result.stdout.split(b"\0")
+    while index < len(raw):
+        entry = raw[index]
+        index += 1
+        if len(entry) < 3:
+            continue
+        fields.append(entry)
+        if b"R" in entry[:2] or b"C" in entry[:2]:
+            index += 1  # a rename or copy is followed by the path it came from
+    return fields
+
+
+def changes(path):
+    """(changed, untracked) in the worktree at PATH, or None when it cannot be read."""
+    fields = _status(path)
+    if fields is None:
+        return None
+    untracked = sum(1 for entry in fields if entry[:2] == b"??")
+    return len(fields) - untracked, untracked
+
+
+def ignored(path):
+    """The ignored paths in the worktree at PATH, or None when it cannot be read.
+
+    `git worktree remove` counts these as clean and deletes them with the
+    directory, so a local `.env` or a build cache goes too. A directory that is
+    ignored as a whole is one entry, with a trailing slash.
+    """
+    fields = _status(path, "--ignored")
+    if fields is None:
+        return None
+    return [
+        entry[3:].decode("utf-8", "replace")
+        for entry in fields
+        if entry[:2] == b"!!"
+    ]
+
+
+def holding_ref(cwd, sha, prefer=None):
+    """A ref that contains SHA, as a short name, or None when nothing does.
+
+    PREFER, a local branch name, wins when it holds the commit. After that a
+    local branch, then a remote-tracking ref, then a tag. Any of them keeps
+    the commit alive when the worktree holding it goes.
+    """
+    out = git(
+        ["for-each-ref", "--contains", sha, "--format=%(refname)", "refs/heads/", "refs/remotes/", "refs/tags/"],
+        cwd,
+        check=False,
+    )
+    refs = [ref for ref in out.splitlines() if ref and not ref.endswith("/HEAD")]
+    if prefer and f"refs/heads/{prefer}" in refs:
+        return prefer
+    for prefix, label in (("refs/heads/", ""), ("refs/remotes/", ""), ("refs/tags/", "tag ")):
+        for ref in refs:
+            if ref.startswith(prefix):
+                return label + ref[len(prefix):]
+    return None
+
+
+def has_remote_tracking_refs(cwd):
+    return bool(git(["for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/"], cwd, check=False))
 
 
 def worktrees(cwd):

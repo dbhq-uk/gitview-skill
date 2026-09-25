@@ -59,13 +59,75 @@ def at_risk(row):
     """Not landed, and some of it exists nowhere but here.
 
     A landed branch is never at risk, whatever its Unpushed says: everything in
-    it is already on the trunk.
+    it is already on the trunk. That holds when its worktree stops it being a
+    YES, too. Uncommitted edits are shown in Dirty, not here.
     """
-    if row.safe.startswith("YES"):
+    if row.landed or row.safe.startswith("YES"):
         return False
-    if row.unpushed in ("gone", "no remote", "?"):
+    if row.unpushed in ("gone", "no remote", "no branch", "?"):
         return True
     return row.unpushed.isdigit() and int(row.unpushed) > 0
+
+
+def _worktree_label(tree):
+    """The directory's basename, plus any state git records against it."""
+    flags = []
+    if tree.locked:
+        flags.append("locked")
+    if tree.prunable:
+        flags.append("prunable")
+    elif tree.missing:
+        flags.append("missing")
+    name = os.path.basename(tree.path)
+    return f"{name} ({', '.join(flags)})" if flags else name
+
+
+def _dirty_label(counts):
+    if counts is None:
+        return "?"
+    changed, untracked = counts
+    parts = []
+    if changed:
+        parts.append(f"{changed} changed")
+    if untracked:
+        parts.append(f"{untracked} untracked")
+    return ", ".join(parts) or "no"
+
+
+def _worktree_blocker(tree, counts):
+    """What about a worktree stops its landed branch being a YES, or None.
+
+    Uncommitted work is not on the trunk, whatever the branch's commits say.
+    A missing directory may be a drive not mounted yet, so its contents are
+    unknown rather than clean. A lock is somebody saying keep this.
+    """
+    if tree.prunable or tree.missing:
+        return "directory is missing"
+    if counts is None:
+        return "could not be read"
+    if any(counts):
+        return "has uncommitted changes"
+    if tree.locked:
+        return "is locked"
+    return None
+
+
+def _detached_row(cwd, tree, counts, trunk_name, trunk_ref):
+    """A worktree with no branch. Its commit is safe only while a ref holds it."""
+    holder = gitrepo.holding_ref(cwd, tree.head, prefer=trunk_name)
+    ahead = gitrepo.count(cwd, f"{trunk_ref}..{tree.head}")
+    behind = gitrepo.count(cwd, f"{tree.head}..{trunk_ref}")
+    return table.Row(
+        worktree=_worktree_label(tree),
+        dirty=_dirty_label(counts),
+        branch=tree.head[:7],
+        pr="-",
+        ahead="?" if ahead is None else ahead,
+        behind="?" if behind is None else behind,
+        unpushed=f"on {holder}" if holder else "no branch",
+        safe="-",
+        detached=True,
+    )
 
 
 def _ago(seconds):
@@ -113,12 +175,15 @@ def survey(cwd, want_prs=True):
         else:
             merged = forge.MergedHeads(kind, cwd)
 
-    checkouts = gitrepo.worktrees(cwd)
+    trees = [tree for tree in gitrepo.worktree_list(cwd) if not tree.bare]
+    counts = {tree.path: gitrepo.changes(tree.path) for tree in trees}
+    by_branch = {tree.branch: tree for tree in trees if tree.branch}
     rows = []
     for branch in gitrepo.branches(cwd):
         name = branch.name
         ref = f"refs/heads/{name}"
 
+        finished = False
         if name == trunk_name:
             safe = "no, trunk"
         else:
@@ -128,25 +193,44 @@ def survey(cwd, want_prs=True):
                 cwd, trunk_name, trunk_ref, name, merged
             ):
                 safe = "no, upstream has unlanded commits"
+            finished = safe.startswith("YES")
+
+        tree = by_branch.get(name)
+        if tree is not None and finished:
+            blocker = _worktree_blocker(tree, counts[tree.path])
+            if blocker:
+                safe = f"no, landed but its worktree {blocker}"
 
         ahead = gitrepo.count(cwd, f"{trunk_ref}..{ref}")
         behind = gitrepo.count(cwd, f"{ref}..{trunk_ref}")
         rows.append(
             table.Row(
-                worktree=checkouts.get(name, "-"),
+                worktree=_worktree_label(tree) if tree else "-",
+                dirty=_dirty_label(counts[tree.path]) if tree else "-",
                 branch=name,
                 pr=prs.get(name, "-"),
                 ahead="?" if ahead is None else ahead,
                 behind="?" if behind is None else behind,
                 unpushed=_unpushed(cwd, branch),
                 safe=safe,
+                landed=finished,
             )
         )
 
+    for tree in trees:
+        if tree.branch is None and tree.head:
+            rows.append(_detached_row(cwd, tree, counts[tree.path], trunk_name, trunk_ref))
+
     risky = [row for row in table.order(rows) if at_risk(row)]
     if risky:
-        listed = ", ".join(f"`{row.branch}` ({_risk_reason(row.unpushed)})" for row in risky)
+        listed = ", ".join(_risk_item(row) for row in risky)
         notes.insert(0, f"At risk of being lost: {listed}.")
+
+    if gitrepo.is_bare(cwd) and gitrepo.git(["remote"], cwd, check=False) and not gitrepo.has_remote_tracking_refs(cwd):
+        notes.append(
+            "This bare repository has no remote-tracking refs, so `no remote` means gitview "
+            "cannot see a remote copy, not that none exists."
+        )
 
     fetched = _fetch_note(cwd)
     if fetched:
@@ -158,11 +242,20 @@ def survey(cwd, want_prs=True):
     return rows, notes
 
 
+def _risk_item(row):
+    if row.detached:
+        where = row.worktree.split(" (", 1)[0]
+        return f"detached `{row.branch}` in `{where}` ({_risk_reason(row.unpushed)})"
+    return f"`{row.branch}` ({_risk_reason(row.unpushed)})"
+
+
 def _risk_reason(unpushed):
     if unpushed == "gone":
         return "its upstream was deleted on the remote"
     if unpushed == "no remote":
         return "no remote holds it"
+    if unpushed == "no branch":
+        return "no branch holds it"
     if unpushed == "?":
         return "could not count its unpushed commits"
     return f"{unpushed} unpushed"
@@ -228,6 +321,25 @@ def _pr_gate(cwd, names):
     return None
 
 
+def _offer_removal(cwd, tree):
+    """Print the command that removes a clean worktree, and what it takes with it.
+
+    Never with --force. Without it git refuses a worktree that has changes or
+    untracked files, so a worktree that gained an edit since this check stays.
+    What git does not refuse is ignored files: they count as clean and go with
+    the directory, so they are listed here before anybody agrees to it.
+    """
+    print("Nothing else refused and the worktree is clean. Remove it, then verify again:")
+    print(f"  git -C {shlex.quote(cwd)} worktree remove {shlex.quote(tree.path)}")
+    paths = gitrepo.ignored(tree.path)
+    if paths is None:
+        print("Could not list the ignored files in it. Look before removing it: they go with it.")
+    elif paths:
+        shown = ", ".join(paths[:5]) + (f" and {len(paths) - 5} more" if len(paths) > 5 else "")
+        noun = "path" if len(paths) == 1 else "paths"
+        print(f"It also deletes {len(paths)} ignored {noun} in that directory: {shown}.")
+
+
 def _verify(cwd, branch, want_prs=True):
     """Exit 0 only when every deletion gate passes. Run it right before deleting.
 
@@ -237,6 +349,11 @@ def _verify(cwd, branch, want_prs=True):
     exact delete commands, with the remote delete leased to the SHA it checked,
     so a push that lands after this check makes the delete fail rather than
     destroy somebody's commit.
+
+    When a worktree is the only gate that refused, and it is a linked worktree
+    that is clean, unlocked and present, it prints the command that removes
+    it, never with --force. Removing it and verifying again is the way to
+    delete a finished branch that still has a worktree.
     """
     trunk_name = gitrepo.trunk(cwd)
     if trunk_name is None:
@@ -284,9 +401,19 @@ def _verify(cwd, branch, want_prs=True):
             )
         remote = up
 
-    checked_out = gitrepo.worktree_paths(cwd).get(branch)
-    if checked_out:
-        refusals.append(f"it is checked out in the worktree at {checked_out}")
+    removable, worktree_refusal = None, None
+    tree = next((t for t in gitrepo.worktree_list(cwd) if t.branch == branch and not t.bare), None)
+    if tree is not None:
+        blocker = _worktree_blocker(tree, gitrepo.changes(tree.path))
+        if tree.main:
+            worktree_refusal = f"it is checked out in the main worktree at {tree.path}, which git cannot remove"
+        elif blocker:
+            joiner = "whose" if blocker.startswith("directory") else "which"
+            worktree_refusal = f"it is checked out in the worktree at {tree.path}, {joiner} {blocker}"
+        else:
+            worktree_refusal = f"it is checked out in the worktree at {tree.path}"
+            removable = tree
+        refusals.append(worktree_refusal)
 
     if want_prs:
         names = [branch]
@@ -299,6 +426,8 @@ def _verify(cwd, branch, want_prs=True):
     if refusals:
         for reason in refusals:
             print(f"Refused: {reason}.")
+        if removable is not None and refusals == [worktree_refusal]:
+            _offer_removal(cwd, removable)
         return 1
 
     git = f"git -C {shlex.quote(cwd)}"

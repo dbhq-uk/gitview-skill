@@ -22,7 +22,7 @@ def test_rows_within_a_group_sort_by_name():
 
 def test_render_produces_a_markdown_table_with_every_column():
     header = render([_row("app", "feature")]).splitlines()[0]
-    for column in ("Worktree", "Branch", "PR", "Ahead", "Behind", "Unpushed", "Safe to delete"):
+    for column in ("Worktree", "Dirty", "Branch", "PR", "Ahead", "Behind", "Unpushed", "Safe to delete"):
         assert column in header
 
 
@@ -38,7 +38,7 @@ def test_a_pipe_in_a_branch_name_cannot_break_the_table():
     row = render([_row("-", "odd|name")]).splitlines()[2]
     assert "odd\\|name" in row, "the pipe must be escaped"
     delimiters = row.replace("\\|", "").count("|")
-    assert delimiters == 8, "seven columns means eight delimiters"
+    assert delimiters == 9, "eight columns means nine delimiters"
 
 
 def test_a_yes_keeps_its_emphasis_and_names_its_signal():

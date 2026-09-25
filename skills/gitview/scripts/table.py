@@ -1,7 +1,7 @@
 """Orders the rows and renders the markdown table."""
 from dataclasses import dataclass
 
-COLUMNS = ("Worktree", "Branch", "PR", "Ahead", "Behind", "Unpushed", "Safe to delete")
+COLUMNS = ("Worktree", "Dirty", "Branch", "PR", "Ahead", "Behind", "Unpushed", "Safe to delete")
 HEADER = "| " + " | ".join(COLUMNS) + " |"
 RULE = "|" + "---|" * len(COLUMNS)
 
@@ -9,12 +9,15 @@ RULE = "|" + "---|" * len(COLUMNS)
 @dataclass
 class Row:
     worktree: str
-    branch: str
+    branch: str  # the branch name, or the short SHA of a detached worktree
     pr: str
     ahead: int
     behind: int
     unpushed: str
     safe: str
+    dirty: str = "-"  # "-" with no worktree, "no" when clean, "?" when unreadable
+    detached: bool = False
+    landed: bool = False  # adds nothing to the trunk, even where Safe to delete says no
 
 
 def order(rows):
@@ -38,13 +41,21 @@ def _safe(value):
     return _escape(value)
 
 
+def _branch(row):
+    """A detached worktree has no branch to name, so it names the commit."""
+    if row.detached:
+        return f"detached at `{_escape(row.branch)}`"
+    return f"`{_escape(row.branch)}`"
+
+
 def render(rows):
     lines = [HEADER, RULE]
     for row in order(rows):
         lines.append(
-            "| {} | `{}` | {} | {} | {} | {} | {} |".format(
+            "| {} | {} | {} | {} | {} | {} | {} | {} |".format(
                 _escape(row.worktree),
-                _escape(row.branch),
+                _escape(row.dirty),
+                _branch(row),
                 _escape(row.pr),
                 row.ahead,
                 row.behind,
