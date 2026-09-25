@@ -90,8 +90,9 @@ jq empty .claude-plugin/plugin.json
 python3 -m pytest skills/gitview/tests -q
 ```
 
-CI runs those, the two prose checks, and a check that `SKILL.md` uses the
-braced `${CLAUDE_SKILL_DIR}`. The tests are worth more than they look:
+CI runs those, the two prose checks, a check that `SKILL.md` uses the braced
+`${CLAUDE_SKILL_DIR}`, and a check that its `name` matches its directory and its
+`description` fits in 1024 characters. The tests are worth more than they look:
 the fixture builds real git repositories, including the squash-merged-then-trunk-moved
 case that defeats both naive checks, so a change that breaks the finished-branch
 logic fails rather than quietly returning the wrong verdict.

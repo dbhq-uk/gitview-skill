@@ -174,8 +174,10 @@ def survey(cwd, want_prs=True):
 
     prs, merged = {}, None
     if want_prs:
-        kind = forge.detect(gitrepo.remote_url(cwd))
+        url = gitrepo.remote_url(cwd)
+        kind = forge.detect(url)
         prs, reason = forge.list_prs(kind, cwd)
+        reason = reason or forge.unrecognised(url)
         if reason:
             notes.append(f"Pull request column skipped: {reason}.")
         else:
@@ -402,8 +404,8 @@ def _pr_gate(cwd, names):
     kind = forge.detect(url)
     if kind is None:
         return (
-            "could not check for an open pull request: gitview cannot query pull requests "
-            "on the host of origin. Re-run with --no-pr only if you know there is none"
+            f"could not check for an open pull request: {forge.unrecognised(url)}. "
+            "Re-run with --no-pr only if you know there is none"
         )
     prs, reason = forge.list_prs(kind, cwd)
     if reason:

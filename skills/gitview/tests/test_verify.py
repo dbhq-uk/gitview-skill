@@ -100,7 +100,7 @@ def test_a_host_gitview_cannot_query_is_a_refusal_not_a_pass(capsys):
         git(repo, "remote", "set-url", "origin", "https://git.example.com/owner/repo.git")
         code, out = _verify(capsys, repo, "landed-squash")
         assert code == 1
-        assert "could not check for an open pull request" in out
+        assert "could not check for an open pull request: origin is on git.example.com" in out
 
 
 def test_no_pr_skips_only_the_pull_request_gate(capsys):

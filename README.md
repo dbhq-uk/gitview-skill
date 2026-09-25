@@ -71,11 +71,12 @@ Python 3, standard library only, and `git`. On git 2.38 or later the
 safe-to-delete check uses `git merge-tree` and takes milliseconds per branch.
 Older git uses a slower fallback.
 
-`gh` for GitHub, or the Azure CLI for Azure DevOps, is optional. With one, the
-table shows open pull requests, a merged pull request can prove a branch
+`gh` for github.com, or the Azure CLI for Azure DevOps, is optional. With one,
+the table shows open pull requests, a merged pull request can prove a branch
 landed, and `--verify` checks for an open pull request before a delete.
-Without one, the pull request column shows dashes, and `--verify` refuses
-rather than guess until it is re-run with `--no-pr`.
+Without one, or on any other host, the pull request column shows dashes, a
+note says why, and `--verify` refuses rather than guess until it is re-run
+with `--no-pr`.
 
 The safe-to-delete check itself is answered from the repository in front of
 it, not from a forge API, which is why it works on a private remote you cannot

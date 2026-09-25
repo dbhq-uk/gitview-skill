@@ -7,7 +7,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import gitview
 import table
-from fixture import build
+from fixture import build, git
 
 
 def test_survey_covers_every_local_branch():
@@ -103,3 +103,15 @@ def test_a_conflicting_branch_says_conflicts_in_the_rendered_table(engine):
         assert conflicting.endswith("| no, conflicts in shared.txt |")
         live = next(line for line in lines if "`live-work`" in line)
         assert live.endswith("| no, 1 file changed, 1 insertion(+) |")
+
+
+def test_a_host_gitview_cannot_query_is_named_under_the_table():
+    """SKILL.md promises a reason whenever the pull request column is skipped."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = build(tmp)
+        git(repo, "remote", "set-url", "origin", "https://gitlab.example/owner/repo.git")
+        _, notes = gitview.survey(repo, want_prs=True)
+        assert (
+            "Pull request column skipped: origin is on gitlab.example, which gitview cannot query."
+            in " ".join(notes)
+        )

@@ -26,7 +26,9 @@ jobs:
       - name: Plugin manifest is valid JSON
         run: jq empty .claude-plugin/plugin.json
 
-      - name: Every SKILL.md has name and description frontmatter
+      # The estate floor: a name that matches its directory, in the form the
+      # Agent Skills spec allows, and a description within its 1024 characters.
+      - name: Every SKILL.md has valid name and description frontmatter
         run: |
           python3 - <<'PY'
           import pathlib, re, sys
@@ -38,10 +40,26 @@ jobs:
                   print(f"{skill}: no frontmatter")
                   ok = False
                   continue
-              for key in ("name:", "description:"):
-                  if key not in match.group(1):
-                      print(f"{skill}: missing {key}")
+              front = match.group(1)
+              name = re.search(r"^name:\s*(.+)$", front, re.M)
+              desc = re.search(r"^description:\s*(.+)$", front, re.M)
+              if not name:
+                  print(f"{skill}: missing name")
+                  ok = False
+              else:
+                  name = name.group(1).strip()
+                  if name != skill.parent.name:
+                      print(f"{skill}: name '{name}' does not match directory '{skill.parent.name}'")
                       ok = False
+                  if not re.fullmatch(r"[a-z0-9-]{1,64}", name):
+                      print(f"{skill}: name must be lowercase letters, digits and hyphens, at most 64")
+                      ok = False
+              if not desc:
+                  print(f"{skill}: missing description")
+                  ok = False
+              elif len(desc.group(1).strip()) > 1024:
+                  print(f"{skill}: description is over 1024 characters")
+                  ok = False
           sys.exit(0 if ok else 1)
           PY
 
