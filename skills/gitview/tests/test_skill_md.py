@@ -83,3 +83,11 @@ def test_skill_md_documents_worktree_removal_and_never_forces_it():
     assert "worktree remove" in text
     assert not re.search(r"worktree remove[^\n]*--force", text)
     assert not re.search(r"--force[^\n]*worktree remove", text)
+
+
+def test_skill_md_push_offer_leaves_out_the_trunk_landed_and_behind():
+    text = SKILL_MD.read_text(encoding="utf-8")
+    assert "Offer it whenever any branch has unpushed commits" not in text
+    assert "**The trunk, always.**" in text
+    assert "**A landed branch.**" in text
+    assert "**A branch behind its upstream.**" in text

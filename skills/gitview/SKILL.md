@@ -105,12 +105,18 @@ git -C PATH worktree remove WORKTREE_PATH
 
 ### Pushing unpushed work
 
-Offer it whenever any branch has unpushed commits or no upstream at all.
+Offer only the commands in the `To push the work that has not landed` note, and run them exactly as printed. Each names its branch and its remote explicitly, so it pushes that branch wherever it is run:
 
 ```bash
-git -C WORKTREE push                      # has an upstream
-git -C WORKTREE push -u origin BRANCH     # no upstream yet
+git -C PATH push REMOTE BRANCH:REMOTE_BRANCH     # has an upstream
+git -C PATH push -u origin BRANCH                # no upstream yet
 ```
+
+The survey leaves three kinds of branch out, and so must you:
+
+- **The trunk, always.** A diverged trunk is rejected by the remote, and in many repositories a push to the trunk is a deploy. When the local trunk has commits its upstream does not, a note says so, and whether it has diverged. Report it and leave the call to the user.
+- **A landed branch.** Everything in it is on the trunk already, so a push only makes a remote branch nobody needs.
+- **A branch behind its upstream.** The remote would reject the push. The `Not offered for a push` note names it and says so.
 
 ### What it never does
 
