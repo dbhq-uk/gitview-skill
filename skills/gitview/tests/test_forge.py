@@ -97,3 +97,37 @@ def test_the_merged_lookup_is_made_once_and_only_when_asked(monkeypatch):
     assert heads.number("abc123") == "12"
     assert heads.number("other") is None
     assert calls == ["github"]
+
+
+def test_a_pull_request_from_a_fork_is_skipped():
+    """A fork's `main` must not label the trunk row, or block a local delete."""
+    raw = (
+        '[{"number": 3, "headRefName": "main", "mergeable": "MERGEABLE", "isCrossRepository": true},'
+        ' {"number": 4, "headRefName": "fix/y", "mergeable": "MERGEABLE", "isCrossRepository": false}]'
+    )
+    assert forge.parse_github(raw) == {"fix/y": "4 mergeable"}
+
+
+def test_the_github_lookup_asks_whether_a_pull_request_is_from_a_fork():
+    fields = forge._COMMANDS["github"][forge._COMMANDS["github"].index("--json") + 1]
+    assert "isCrossRepository" in fields.split(",")
+
+
+def test_a_mergeable_github_pull_request_says_mergeable():
+    """`succeeded` is Azure's word. GitHub says the pull request can merge."""
+    raw = '[{"number": 12, "headRefName": "fix/y", "mergeable": "MERGEABLE"}]'
+    assert forge.parse_github(raw) == {"fix/y": "12 mergeable"}
+
+
+def test_the_host_is_read_from_every_url_form():
+    assert forge.host("https://gitlab.example/owner/repo.git") == "gitlab.example"
+    assert forge.host("ssh://git@git.example.com:2222/owner/repo.git") == "git.example.com:2222"
+    assert forge.host("git@github-work:owner/repo.git") == "github-work"
+
+
+def test_an_unrecognised_host_is_named_not_skipped_silently():
+    note = forge.unrecognised("git@github-work:owner/repo.git")
+    assert note.startswith("origin is on github-work, which gitview cannot query.")
+    assert forge.unrecognised("https://github.com/owner/repo.git") is None
+    assert forge.unrecognised("/srv/git/repo.git") is None
+    assert forge.unrecognised(None) is None

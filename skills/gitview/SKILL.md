@@ -131,6 +131,6 @@ No merging, no completing pull requests, no rebasing, no resolving conflicts, no
 ## Requirements
 
 - `git`. On 2.38 or later the check uses `git merge-tree` and takes milliseconds per branch. Older git uses a slower fallback in a temporary worktree.
-- `az` for Azure DevOps pull requests, or `gh` for GitHub. Neither is required. Without them the pull request column shows dashes and the reason is printed once under the table.
+- `az` for Azure DevOps pull requests, or `gh` for github.com. Neither is required. Without them the pull request column shows dashes and the reason is printed once under the table. On any other host, including GitHub Enterprise and an SSH host alias, the note names the host instead. Pull requests from forks are left out, because their branches are not this repository's.
 
 The script never changes a branch, a ref, the index or a working tree. On git 2.38 or later the only thing it writes is merge objects into the object store. On older git it also makes a temporary worktree, with hooks off, and removes it. It reads each worktree's status with `--no-optional-locks`, so even that does not refresh an index.

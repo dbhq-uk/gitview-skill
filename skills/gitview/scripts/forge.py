@@ -15,7 +15,7 @@ _AZURE_QUERY = "[].{pullRequestId:pullRequestId,sourceRefName:sourceRefName,merg
 _COMMANDS = {
     "azure": ["az", "repos", "pr", "list", "--status", "active", "--query", _AZURE_QUERY, "-o", "json"],
     "github": ["gh", "pr", "list", "--state", "open", "--limit", "200",
-               "--json", "number,headRefName,mergeable"],
+               "--json", "number,headRefName,mergeable,isCrossRepository"],
 }
 
 _TOOLS = {"azure": "az", "github": "gh"}
@@ -43,6 +43,34 @@ def detect(url):
     return None
 
 
+def host(url):
+    """The host a remote URL names, so a host gitview cannot query can be named.
+
+    Handles `scheme://user@host:port/path` and the scp-like `user@host:path`.
+    An SSH host alias comes back as the alias, which is what the user wrote.
+    """
+    if "://" in url:
+        authority = url.split("://", 1)[1].split("/", 1)[0]
+    else:
+        authority = url.split(":", 1)[0]
+    return authority.rsplit("@", 1)[-1]
+
+
+def unrecognised(url):
+    """A note for a hosted remote gitview has no pull request lookup for, or None.
+
+    None for no remote, one on this machine, and a host it knows. Otherwise the
+    lookup is skipped, and saying so is the difference between "no pull
+    requests" and "could not look".
+    """
+    if not url or detect(url) or is_local(url):
+        return None
+    return (
+        f"origin is on {host(url)}, which gitview cannot query. "
+        "It looks up pull requests on github.com and Azure DevOps only"
+    )
+
+
 def is_local(url):
     """A remote on this machine, a path or a file:// URL. It has no pull requests."""
     if url.startswith("file://"):
@@ -63,12 +91,18 @@ def parse_azure(raw):
 
 
 def parse_github(raw):
+    """Open pull requests from this repository's own branches, by branch name.
+
+    A pull request from a fork is skipped. Its head is a branch in somebody
+    else's repository, and a fork's `main` would otherwise label the trunk row
+    here, and block deleting a local branch that only shares its name.
+    """
     found = {}
     for item in json.loads(raw or "[]"):
         branch = item.get("headRefName")
-        if not branch:
+        if not branch or item.get("isCrossRepository"):
             continue
-        state = {"CONFLICTING": "conflicts", "MERGEABLE": "succeeded"}.get(
+        state = {"CONFLICTING": "conflicts", "MERGEABLE": "mergeable"}.get(
             item.get("mergeable") or "", "open"
         )
         found[branch] = f"{item.get('number')} {state}"
