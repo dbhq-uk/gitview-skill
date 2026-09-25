@@ -22,23 +22,29 @@ This is not hypothetical. It is what sent one survey badly wrong: two branches w
 
 ## The test that works
 
-Merge the trunk into a throwaway copy of the branch, and compare the resulting tree with the trunk's tree. Equal means the branch adds nothing.
+Merge the trunk into the branch, and compare the resulting tree with the trunk's tree. Equal means the branch adds nothing.
 
-gitview does this in two tiers, because the obvious implementation, a real merge per branch, needs a worktree per branch and is slow enough to be annoying.
+### On git 2.38 or later: `git merge-tree --write-tree`
 
-### Tier one: a trivial merge into a temporary index
+`git merge-tree --write-tree <branch> <trunk>` performs the full merge in memory and prints the resulting tree. Exit 1 means conflicts, and lists the conflicted paths. Otherwise the printed tree is compared with the trunk's.
 
-`git read-tree -m --aggressive <merge-base> <branch> <trunk>` against a temporary `GIT_INDEX_FILE`, then compare `git write-tree` with the trunk's tree. No checkout, no worktree, milliseconds.
+It needs no worktree and no index, runs no hooks, makes no commit, and reads none of the user's commit, signing or fast-forward settings. The only thing it writes is the merged trees and blobs, into the object store, unreferenced. It takes milliseconds per branch.
 
-**It is definitive only when it says yes.** If every path resolved to the trunk's version then for every path the branch either never touched it or agrees with it, which is exactly what contributing nothing means.
+That matters more than speed. A real `git merge` runs the repository's hooks, fails under a failing `commit.gpgsign`, `merge.ff=only` or no committer identity, and in any of those cases leaves a finished branch looking unlanded. `tests/test_isolation.py` asserts each of those against both paths.
 
-**A no answer proves nothing.** `read-tree` performs a trivial merge and refuses any file both sides edited, even where a real merge would combine two non-overlapping changes cleanly. Treating its no as an answer would report finished branches as conflicted.
+### On older git: a guarded fallback
 
-### Tier two: a real merge in a throwaway worktree
+Git before 2.38 has no `merge-tree --write-tree`, so the check falls back to two tiers.
 
-Run only for branches tier one could not prove finished. It is the only thing that can tell a genuine conflict apart from genuine unlanded work, and it is where the `conflicts` and `no, N insertions` answers come from.
+**Tier one: a trivial merge into a temporary index.** `git read-tree -m --aggressive <merge-base> <branch> <trunk>` against a temporary `GIT_INDEX_FILE`, then compare `git write-tree` with the trunk's tree. No checkout, no worktree, milliseconds.
 
-The worktree is created detached under a temporary directory and removed in a `finally` block, including when the merge raises.
+It is definitive only when it says yes. If every path resolved to the trunk's version then for every path the branch either never touched it or agrees with it, which is exactly what contributing nothing means.
+
+A no answer proves nothing. `read-tree` performs a trivial merge and refuses any file both sides edited, even where a real merge would combine two non-overlapping changes cleanly. Treating its no as an answer would report finished branches as conflicted.
+
+**Tier two: a real merge in a throwaway worktree.** Run only for branches tier one could not prove finished. The worktree is created detached under a temporary directory, the merge is `--no-commit --no-ff`, and the tree is read from the index, so no commit, signature or identity is needed. Hooks are off (`core.hooksPath=/dev/null`), as are signature checks and rerere.
+
+The worktree is removed in a `finally` block, including when the merge raises, and only that worktree is removed. Never `git worktree prune`: it acts on every worktree in the repository, and a worktree whose directory is briefly absent loses its registration, after which `git branch -D` will delete a branch still checked out there.
 
 ## What the columns cannot tell you
 

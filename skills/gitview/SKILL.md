@@ -19,7 +19,7 @@ Print the table as it comes. Do not re-sort it, re-format it, or drop rows to ma
 
 ## How to read it
 
-**Safe to delete is the column that answers the question.** It is computed by merging the trunk into a throwaway copy of the branch and comparing trees. `YES` means the branch adds nothing to the trunk.
+**Safe to delete is the column that answers the question.** It is computed by merging the trunk into the branch with `git merge-tree`, which touches no checkout, and comparing trees. `YES` means the branch adds nothing to the trunk.
 
 **Ahead is a commit count, not a measure of unlanded work.** A branch merged by squash stays ahead of the trunk forever while contributing nothing. Never tell someone a branch has unlanded work because its ahead number is large. [references/safe-to-delete.md](references/safe-to-delete.md) explains why, and why the two obvious cheaper checks are both wrong.
 
@@ -80,7 +80,7 @@ No merging, no completing pull requests, no rebasing, no resolving conflicts, no
 
 ## Requirements
 
-- `git`.
+- `git`. On 2.38 or later the check uses `git merge-tree` and takes milliseconds per branch. Older git uses a slower fallback in a temporary worktree.
 - `az` for Azure DevOps pull requests, or `gh` for GitHub. Neither is required. Without them the pull request column shows dashes and the reason is printed once under the table.
 
-The script is read only. It never writes to the repository it surveys.
+The script never changes a branch, a ref, the index or a working tree. On git 2.38 or later the only thing it writes is merge objects into the object store. On older git it also makes a temporary worktree, with hooks off, and removes it.

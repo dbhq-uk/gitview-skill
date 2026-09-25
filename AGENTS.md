@@ -27,10 +27,14 @@ Everything else here is a preference. These are not.
 
 **1. `gitview.py` is read only.** It never deletes, pushes, merges or checks out
 an existing branch. Its docstring says so and that is a promise to the reader,
-not a description of the current state. The test merge happens in a temporary
-index and a detached temporary worktree, both outside the repository, both
-cleaned up. If you need a write operation, it belongs in the agent's hands in the
-user's session, not in the script.
+not a description of the current state. The test merge is
+`git merge-tree --write-tree`, which writes objects to the object store and
+nothing else: no worktree, no index, no hooks, no commit. Older git falls back to
+a detached temporary worktree with hooks off, and removes only that worktree.
+**Never add a `git worktree prune`**: it acts on every worktree in the
+repository, and a worktree whose directory is briefly absent loses its
+registration. If you need a write operation, it belongs in the agent's hands in
+the user's session, not in the script.
 
 **2. A destructive suggestion must be gated, and the gate is re-verified.** The
 skill's most useful output is also its most dangerous: a list of branches

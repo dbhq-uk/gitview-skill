@@ -18,19 +18,26 @@ lookup entirely and the skill then works offline.
 
 ### On disk
 
-`scripts/gitview.py` is read only. It never deletes, pushes, merges, or checks
-out an existing branch, and it never writes to your working tree or your index.
+`scripts/gitview.py` never deletes, pushes, merges or checks out a branch, and
+it never writes to your working tree, your index or any ref. It is not strictly
+read only, and this is exactly what it writes:
 
-Two things it does create, both temporary and both outside the repository:
-
-- A throwaway git index under `tempfile.mkstemp`, so the real one is untouched
-- A detached worktree under `tempfile.mkdtemp`, used to test-merge the trunk into
-  a copy of each branch and compare the resulting trees. It is removed with
-  `git worktree remove --force` when the check finishes
+- **On git 2.38 or later**, the test merge is `git merge-tree --write-tree`. That
+  writes the merged trees and blobs into the object store, and nothing else. No
+  worktree, no index, no commit. It runs no hooks and ignores your commit and
+  signing settings. Nothing refers to those objects, so `git gc` removes them in
+  due course.
+- **On older git**, which has no `merge-tree --write-tree`, it falls back to a
+  temporary git index under `tempfile.mkstemp`, then a detached worktree under
+  `tempfile.mkdtemp` where it merges with `--no-commit`. That run has hooks
+  switched off (`core.hooksPath=/dev/null`), signing and signature checks off,
+  rerere off and a fixed identity. The worktree is removed with
+  `git worktree remove --force`, and only that worktree. It never runs
+  `git worktree prune`, which would act on every worktree in the repository.
 
 That test merge is the whole reason the "safe to delete" column can be trusted
-where a repository squashes on merge, and it is why the work happens in a copy
-rather than in your checkout.
+where a repository squashes on merge, and it is why the work never happens in
+your checkout.
 
 ### The deletions
 
